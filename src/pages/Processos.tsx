@@ -1,43 +1,83 @@
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Calendar, User } from "lucide-react";
+import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ProcessoForm } from "@/components/Processos/ProcessoForm";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Processos() {
-  const processos = [
-    {
-      id: 1,
-      numero: "1234567-12.2025.8.26.0100",
-      tipo: "Civil",
-      cliente: "João Silva",
-      status: "active",
-      fase: "Instrução",
-      valor: "R$ 50.000,00",
-      data: "15/01/2025"
-    },
-    {
-      id: 2,
-      numero: "7654321-45.2025.5.02.0456",
-      tipo: "Trabalhista",
-      cliente: "Maria Santos",
-      status: "pending",
-      fase: "Inicial",
-      valor: "R$ 25.000,00",
-      data: "10/02/2025"
-    },
-    {
-      id: 3,
-      numero: "9876543-78.2024.8.26.0002",
-      tipo: "Família",
-      cliente: "Pedro Costa",
-      status: "completed",
-      fase: "Sentença",
-      valor: "R$ 10.000,00",
-      data: "20/12/2024"
-    },
-  ];
+  const [processos, setProcessos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingProcesso, setEditingProcesso] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [processoToDelete, setProcessoToDelete] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    fetchProcessos();
+  }, []);
+
+  const fetchProcessos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("processos")
+        .select("*, clientes(nome)")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      setProcessos(data || []);
+    } catch (error: any) {
+      toast.error("Erro ao carregar processos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!processoToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("processos")
+        .delete()
+        .eq("id", processoToDelete.id);
+      
+      if (error) throw error;
+      toast.success("Processo excluído com sucesso!");
+      fetchProcessos();
+    } catch (error: any) {
+      toast.error("Erro ao excluir processo");
+    } finally {
+      setDeleteDialogOpen(false);
+      setProcessoToDelete(null);
+    }
+  };
+
+  const filteredProcessos = processos.filter(processo =>
+    processo.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    processo.tipo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusVariant = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
@@ -58,7 +98,10 @@ export default function Processos() {
             <h1 className="text-3xl font-bold text-foreground">Processos</h1>
             <p className="text-muted-foreground">Acompanhe todos os seus processos</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => {
+            setEditingProcesso(null);
+            setFormOpen(true);
+          }}>
             <Plus className="h-4 w-4" />
             Novo Processo
           </Button>
@@ -72,6 +115,8 @@ export default function Processos() {
               <Input
                 placeholder="Buscar por número, cliente, tipo..."
                 className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline">Filtros</Button>
@@ -108,53 +153,110 @@ export default function Processos() {
 
         {/* Process List */}
         <div className="grid gap-4">
-          {processos.map((processo) => {
-            const statusInfo = getStatusVariant(processo.status);
-            return (
-              <Card key={processo.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
-                <div className="space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-foreground">{processo.numero}</h3>
-                        <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
-                        <Badge variant="outline">{processo.tipo}</Badge>
+          {loading ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            </Card>
+          ) : filteredProcessos.length === 0 ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">
+                {searchTerm ? "Nenhum processo encontrado" : "Nenhum processo cadastrado"}
+              </p>
+            </Card>
+          ) : (
+            filteredProcessos.map((processo) => {
+              const statusInfo = getStatusVariant(processo.status);
+              return (
+                <Card key={processo.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-foreground">{processo.numero}</h3>
+                          <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
+                          <Badge variant="outline">{processo.tipo}</Badge>
+                        </div>
+                        {processo.comarca && <p className="text-sm text-muted-foreground">Comarca: {processo.comarca}</p>}
                       </div>
-                      <p className="text-sm text-muted-foreground">Fase: {processo.fase}</p>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setEditingProcesso(processo);
+                            setFormOpen(true);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setProcessoToDelete(processo);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <Button variant="ghost" size="icon">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
 
-                  {/* Details */}
-                  <div className="grid gap-4 md:grid-cols-3 text-sm">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <User className="h-4 w-4" />
-                      <span>Cliente: <span className="font-medium text-foreground">{processo.cliente}</span></span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>Distribuído: <span className="font-medium text-foreground">{processo.data}</span></span>
-                    </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <span>Valor: <span className="font-medium text-foreground">{processo.valor}</span></span>
+                    {/* Details */}
+                    <div className="grid gap-4 md:grid-cols-3 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <User className="h-4 w-4" />
+                        <span>Cliente: <span className="font-medium text-foreground">
+                          {processo.clientes?.nome || "Não vinculado"}
+                        </span></span>
+                      </div>
+                      {processo.vara && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span>Vara: <span className="font-medium text-foreground">{processo.vara}</span></span>
+                        </div>
+                      )}
+                      {processo.valor && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span>Valor: <span className="font-medium text-foreground">
+                            R$ {processo.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </span></span>
+                        </div>
+                      )}
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t">
-                    <Button variant="outline" size="sm">Ver detalhes</Button>
-                    <Button variant="outline" size="sm">Documentos</Button>
-                    <Button variant="outline" size="sm">Prazos</Button>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+                </Card>
+              );
+            })
+          )}
         </div>
       </div>
+
+      <ProcessoForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSuccess={fetchProcessos}
+        processo={editingProcesso}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o processo {processoToDelete?.numero}? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

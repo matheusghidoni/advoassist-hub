@@ -2,18 +2,77 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock } from "lucide-react";
-import { useState } from "react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { PrazoForm } from "@/components/Prazos/PrazoForm";
+import { format, parseISO } from "date-fns";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Prazos() {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 9, 15)); // Oct 15, 2025
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [prazos, setPrazos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingPrazo, setEditingPrazo] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [prazoToDelete, setPrazoToDelete] = useState<any>(null);
 
-  const prazos = [
-    { id: 1, dia: 17, titulo: "Petição Inicial", processo: "1234567-12.2025", tipo: "Judicial", prioridade: "high" },
-    { id: 2, dia: 20, titulo: "Recurso", processo: "7654321-45.2025", tipo: "Judicial", prioridade: "medium" },
-    { id: 3, dia: 22, titulo: "Audiência", processo: "9876543-78.2024", tipo: "Judicial", prioridade: "high" },
-    { id: 4, dia: 25, titulo: "Protocolo", processo: "1111111-11.2025", tipo: "Administrativo", prioridade: "low" },
-  ];
+  useEffect(() => {
+    fetchPrazos();
+  }, []);
+
+  const fetchPrazos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("prazos")
+        .select("*, processos(numero)")
+        .order("data");
+      
+      if (error) throw error;
+      setPrazos(data || []);
+    } catch (error: any) {
+      toast.error("Erro ao carregar prazos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!prazoToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("prazos")
+        .delete()
+        .eq("id", prazoToDelete.id);
+      
+      if (error) throw error;
+      toast.success("Prazo excluído com sucesso!");
+      fetchPrazos();
+    } catch (error: any) {
+      toast.error("Erro ao excluir prazo");
+    } finally {
+      setDeleteDialogOpen(false);
+      setPrazoToDelete(null);
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -35,7 +94,16 @@ export default function Prazos() {
   };
 
   const getPrazosByDay = (day: number) => {
-    return prazos.filter(p => p.dia === day);
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const targetDate = new Date(year, month, day);
+    
+    return prazos.filter(p => {
+      const prazoDate = parseISO(p.data);
+      return prazoDate.getDate() === day && 
+             prazoDate.getMonth() === month && 
+             prazoDate.getFullYear() === year;
+    });
   };
 
   return (
@@ -47,7 +115,10 @@ export default function Prazos() {
             <h1 className="text-3xl font-bold text-foreground">Prazos</h1>
             <p className="text-muted-foreground">Controle todos os seus prazos e compromissos</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => {
+            setEditingPrazo(null);
+            setFormOpen(true);
+          }}>
             <Plus className="h-4 w-4" />
             Novo Prazo
           </Button>
@@ -123,7 +194,10 @@ export default function Prazos() {
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dayPrazos = getPrazosByDay(day);
-              const isToday = day === 15;
+              const today = new Date();
+              const isToday = day === today.getDate() && 
+                            currentDate.getMonth() === today.getMonth() && 
+                            currentDate.getFullYear() === today.getFullYear();
               
               return (
                 <div
@@ -161,38 +235,96 @@ export default function Prazos() {
         <Card className="p-6 shadow-card">
           <h2 className="mb-4 text-lg font-semibold text-foreground">Próximos Prazos</h2>
           <div className="space-y-3">
-            {prazos.map(prazo => (
-              <div
-                key={prazo.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-gradient-card p-4"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-12 w-12 flex-col items-center justify-center rounded-lg font-semibold ${
-                    prazo.prioridade === 'high'
-                      ? 'bg-destructive/10 text-destructive'
-                      : prazo.prioridade === 'medium'
-                      ? 'bg-warning/10 text-warning'
-                      : 'bg-success/10 text-success'
-                  }`}>
-                    <span className="text-xs">OUT</span>
-                    <span className="text-lg">{prazo.dia}</span>
+            {loading ? (
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            ) : prazos.length === 0 ? (
+              <p className="text-center text-muted-foreground">Nenhum prazo cadastrado</p>
+            ) : (
+              prazos.map(prazo => {
+                const prazoDate = parseISO(prazo.data);
+                return (
+                  <div
+                    key={prazo.id}
+                    className="flex items-center justify-between rounded-lg border border-border bg-gradient-card p-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`flex h-12 w-12 flex-col items-center justify-center rounded-lg font-semibold ${
+                        prazo.prioridade === 'alta'
+                          ? 'bg-destructive/10 text-destructive'
+                          : prazo.prioridade === 'media'
+                          ? 'bg-warning/10 text-warning'
+                          : 'bg-success/10 text-success'
+                      }`}>
+                        <span className="text-xs">{format(prazoDate, 'MMM').toUpperCase()}</span>
+                        <span className="text-lg">{format(prazoDate, 'dd')}</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{prazo.titulo}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          {prazo.processos?.numero ? `Processo: ${prazo.processos.numero}` : "Sem processo vinculado"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">
+                        {prazo.tipo}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setEditingPrazo(prazo);
+                            setFormOpen(true);
+                          }}>
+                            <Pencil className="h-4 w-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              setPrazoToDelete(prazo);
+                              setDeleteDialogOpen(true);
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{prazo.titulo}</h3>
-                    <p className="text-sm text-muted-foreground">Processo: {prazo.processo}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={prazo.tipo === 'Judicial' ? 'default' : 'secondary'}>
-                    {prazo.tipo}
-                  </Badge>
-                  <Button variant="outline" size="sm">Ver detalhes</Button>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </Card>
       </div>
+
+      <PrazoForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSuccess={fetchPrazos}
+        prazo={editingPrazo}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o prazo "{prazoToDelete?.titulo}"? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

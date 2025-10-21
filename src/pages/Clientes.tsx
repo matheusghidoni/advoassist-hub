@@ -1,40 +1,84 @@
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, FileText, Phone, Mail } from "lucide-react";
+import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ClienteForm } from "@/components/Clientes/ClienteForm";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Clientes() {
-  const clientes = [
-    { 
-      id: 1, 
-      nome: "João Silva", 
-      cpf: "123.456.789-00", 
-      email: "joao.silva@email.com",
-      telefone: "(11) 98765-4321",
-      processos: 3,
-      status: "ativo"
-    },
-    { 
-      id: 2, 
-      nome: "Maria Santos", 
-      cpf: "987.654.321-00", 
-      email: "maria.santos@email.com",
-      telefone: "(11) 91234-5678",
-      processos: 2,
-      status: "ativo"
-    },
-    { 
-      id: 3, 
-      nome: "Pedro Costa", 
-      cpf: "456.789.123-00", 
-      email: "pedro.costa@email.com",
-      telefone: "(11) 99876-5432",
-      processos: 1,
-      status: "ativo"
-    },
-  ];
+  const [clientes, setClientes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clienteToDelete, setClienteToDelete] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    fetchClientes();
+  }, []);
+
+  const fetchClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("*")
+        .order("nome");
+      
+      if (error) throw error;
+      setClientes(data || []);
+    } catch (error: any) {
+      toast.error("Erro ao carregar clientes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!clienteToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("clientes")
+        .delete()
+        .eq("id", clienteToDelete.id);
+      
+      if (error) throw error;
+      toast.success("Cliente excluído com sucesso!");
+      fetchClientes();
+    } catch (error: any) {
+      toast.error("Erro ao excluir cliente");
+    } finally {
+      setDeleteDialogOpen(false);
+      setClienteToDelete(null);
+    }
+  };
+
+  const filteredClientes = clientes.filter(cliente =>
+    cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.cpf.includes(searchTerm) ||
+    cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <MainLayout>
@@ -45,7 +89,10 @@ export default function Clientes() {
             <h1 className="text-3xl font-bold text-foreground">Clientes</h1>
             <p className="text-muted-foreground">Gerencie seus clientes e seus dados</p>
           </div>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => {
+            setEditingCliente(null);
+            setFormOpen(true);
+          }}>
             <Plus className="h-4 w-4" />
             Novo Cliente
           </Button>
@@ -59,6 +106,8 @@ export default function Clientes() {
               <Input
                 placeholder="Buscar por nome, CPF, email..."
                 className="pl-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Button variant="outline">Filtros</Button>
@@ -67,51 +116,104 @@ export default function Clientes() {
 
         {/* Clients List */}
         <div className="grid gap-4">
-          {clientes.map((cliente) => (
-            <Card key={cliente.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between">
-                <div className="flex gap-4">
-                  {/* Avatar */}
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-lg">
-                    {cliente.nome.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  
-                  {/* Info */}
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold text-foreground">{cliente.nome}</h3>
-                        <Badge variant="secondary">{cliente.status}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">CPF: {cliente.cpf}</p>
+          {loading ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">Carregando...</p>
+            </Card>
+          ) : filteredClientes.length === 0 ? (
+            <Card className="p-6">
+              <p className="text-center text-muted-foreground">
+                {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+              </p>
+            </Card>
+          ) : (
+            filteredClientes.map((cliente) => (
+              <Card key={cliente.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div className="flex gap-4">
+                    {/* Avatar */}
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-lg">
+                      {cliente.nome.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                     </div>
                     
-                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Mail className="h-4 w-4" />
-                        {cliente.email}
+                    {/* Info */}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-foreground">{cliente.nome}</h3>
+                          <Badge variant="secondary">ativo</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">CPF: {cliente.cpf}</p>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Phone className="h-4 w-4" />
-                        {cliente.telefone}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <FileText className="h-4 w-4" />
-                        {cliente.processos} processo(s)
+                      
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="h-4 w-4" />
+                          {cliente.email}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="h-4 w-4" />
+                          {cliente.telefone}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Actions */}
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
+                  {/* Actions */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => {
+                        setEditingCliente(cliente);
+                        setFormOpen(true);
+                      }}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => {
+                          setClienteToDelete(cliente);
+                          setDeleteDialogOpen(true);
+                        }}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Excluir
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </Card>
+            ))
+          )}
         </div>
       </div>
+
+      <ClienteForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        onSuccess={fetchClientes}
+        cliente={editingCliente}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente {clienteToDelete?.nome}? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

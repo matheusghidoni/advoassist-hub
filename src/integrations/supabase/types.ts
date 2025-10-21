@@ -14,6 +14,139 @@ export type Database = {
   }
   public: {
     Tables: {
+      clientes: {
+        Row: {
+          cpf: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          telefone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cpf: string
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          telefone: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cpf?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          telefone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      prazos: {
+        Row: {
+          concluido: boolean
+          created_at: string
+          data: string
+          descricao: string | null
+          id: string
+          prioridade: string
+          processo_id: string | null
+          tipo: string
+          titulo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concluido?: boolean
+          created_at?: string
+          data: string
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          processo_id?: string | null
+          tipo: string
+          titulo: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          concluido?: boolean
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          id?: string
+          prioridade?: string
+          processo_id?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prazos_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      processos: {
+        Row: {
+          cliente_id: string | null
+          comarca: string | null
+          created_at: string
+          id: string
+          numero: string
+          status: string
+          tipo: string
+          updated_at: string
+          user_id: string
+          valor: number | null
+          vara: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          comarca?: string | null
+          created_at?: string
+          id?: string
+          numero: string
+          status?: string
+          tipo: string
+          updated_at?: string
+          user_id: string
+          valor?: number | null
+          vara?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          comarca?: string | null
+          created_at?: string
+          id?: string
+          numero?: string
+          status?: string
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+          valor?: number | null
+          vara?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
