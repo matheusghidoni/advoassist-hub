@@ -47,6 +47,53 @@ export type Database = {
         }
         Relationships: []
       }
+      honorarios: {
+        Row: {
+          created_at: string
+          data_vencimento: string | null
+          id: string
+          observacoes: string | null
+          processo_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          valor_pago: number
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string
+          data_vencimento?: string | null
+          id?: string
+          observacoes?: string | null
+          processo_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          valor_pago?: number
+          valor_total: number
+        }
+        Update: {
+          created_at?: string
+          data_vencimento?: string | null
+          id?: string
+          observacoes?: string | null
+          processo_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          valor_pago?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "honorarios_processo_id_fkey"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prazos: {
         Row: {
           concluido: boolean
