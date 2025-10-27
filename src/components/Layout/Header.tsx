@@ -1,7 +1,6 @@
-import { Search, Bell, User, LogOut, Settings } from "lucide-react";
+import { Search, User, LogOut, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +12,14 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { NotificacoesPopover } from "@/components/Notificacoes/NotificacoesPopover";
+import { useSidebar } from "@/components/ui/sidebar";
 
 export function Header() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { state } = useSidebar();
+  const sidebarWidth = state === "collapsed" ? "3.5rem" : "16rem";
 
   const handleLogout = async () => {
     await signOut();
@@ -29,7 +32,10 @@ export function Header() {
   };
 
   return (
-    <header className="fixed left-64 right-0 top-0 z-30 h-16 border-b bg-card">
+    <header 
+      className="fixed right-0 top-0 z-30 h-16 border-b bg-card transition-all duration-300"
+      style={{ left: sidebarWidth }}
+    >
       <div className="flex h-full items-center justify-between px-6">
         {/* Search */}
         <div className="flex flex-1 max-w-xl">
@@ -44,15 +50,7 @@ export function Header() {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <Badge 
-              variant="destructive" 
-              className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
-            >
-              3
-            </Badge>
-          </Button>
+          <NotificacoesPopover />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
