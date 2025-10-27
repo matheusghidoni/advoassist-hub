@@ -19,6 +19,7 @@ import {
   SidebarMenuButton,
   SidebarHeader,
   SidebarFooter,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -39,14 +40,17 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex h-16 items-center gap-2 border-b px-6">
-          <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
-          {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-sidebar-foreground">LegalFlow</span>
-              <span className="text-xs text-sidebar-foreground/60">Gestão Jurídica</span>
-            </div>
-          )}
+        <div className="flex h-16 items-center justify-between border-b px-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg font-bold text-sidebar-foreground truncate">LegalFlow</span>
+                <span className="text-xs text-sidebar-foreground/60 truncate">Gestão Jurídica</span>
+              </div>
+            )}
+          </div>
+          <SidebarTrigger className="shrink-0" />
         </div>
       </SidebarHeader>
 
@@ -76,8 +80,8 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="border-t p-4">
-          <div className="flex items-center gap-3 rounded-lg bg-sidebar-accent/50 p-3">
+        <div className="border-t p-2">
+          <div className={`flex items-center gap-3 rounded-lg bg-sidebar-accent/50 p-2 ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground font-semibold shrink-0">
               AD
             </div>
