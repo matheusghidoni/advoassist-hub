@@ -22,6 +22,12 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -42,12 +48,27 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex h-16 items-center border-b px-3 gap-2">
           <SidebarTrigger className="shrink-0" />
-          <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
-          {!isCollapsed && (
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-lg font-bold text-sidebar-foreground truncate">LegalFlow</span>
-              <span className="text-xs text-sidebar-foreground/60 truncate">Gestão Jurídica</span>
-            </div>
+          {isCollapsed ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>LegalFlow - Gestão Jurídica</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <>
+              <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-lg font-bold text-sidebar-foreground truncate">LegalFlow</span>
+                <span className="text-xs text-sidebar-foreground/60 truncate">Gestão Jurídica</span>
+              </div>
+            </>
           )}
         </div>
       </SidebarHeader>
