@@ -86,6 +86,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_honorarios_processo"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "honorarios_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
@@ -172,6 +179,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_prazos_processo"
+            columns: ["processo_id"]
+            isOneToOne: false
+            referencedRelation: "processos"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "prazos_processo_id_fkey"
             columns: ["processo_id"]
             isOneToOne: false
@@ -222,6 +236,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_processos_cliente"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "processos_cliente_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
@@ -266,15 +287,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -401,6 +449,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
