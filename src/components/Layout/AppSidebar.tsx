@@ -40,17 +40,15 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex h-16 items-center justify-between border-b px-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
-            {!isCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-lg font-bold text-sidebar-foreground truncate">LegalFlow</span>
-                <span className="text-xs text-sidebar-foreground/60 truncate">Gestão Jurídica</span>
-              </div>
-            )}
-          </div>
+        <div className="flex h-16 items-center border-b px-3 gap-2">
           <SidebarTrigger className="shrink-0" />
+          <Scale className="h-8 w-8 text-sidebar-primary shrink-0" />
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-lg font-bold text-sidebar-foreground truncate">LegalFlow</span>
+              <span className="text-xs text-sidebar-foreground/60 truncate">Gestão Jurídica</span>
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
