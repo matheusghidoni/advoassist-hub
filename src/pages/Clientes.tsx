@@ -142,6 +142,14 @@ export default function Clientes() {
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-semibold text-foreground">{cliente.nome}</h3>
                           <Badge variant="secondary">ativo</Badge>
+                          {cliente.tipo && (
+                            <Badge variant="outline">
+                              {cliente.tipo === "requerente" && "Requerente"}
+                              {cliente.tipo === "requerido" && "Requerido"}
+                              {cliente.tipo === "exequente" && "Exequente"}
+                              {cliente.tipo === "executado" && "Executado"}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">CPF: {cliente.cpf}</p>
                       </div>

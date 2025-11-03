@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -15,6 +16,9 @@ const clienteSchema = z.object({
   cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF inválido (formato: 000.000.000-00)"),
   email: z.string().email("Email inválido"),
   telefone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, "Telefone inválido (formato: (00) 00000-0000)"),
+  tipo: z.enum(["requerente", "requerido", "exequente", "executado"], {
+    required_error: "Selecione o tipo de cliente",
+  }),
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
@@ -28,10 +32,11 @@ interface ClienteFormProps {
 
 export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteFormProps) {
   const [loading, setLoading] = useState(false);
+  const [tipo, setTipo] = useState<string>(cliente?.tipo || "requerente");
   
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<ClienteFormData>({
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClienteFormData>({
     resolver: zodResolver(clienteSchema),
-    defaultValues: cliente || {},
+    defaultValues: cliente || { tipo: "requerente" },
   });
 
   const onSubmit = async (data: ClienteFormData) => {
@@ -45,6 +50,7 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
         cpf: data.cpf,
         email: data.email,
         telefone: data.telefone,
+        tipo: data.tipo,
       };
 
       if (cliente) {
@@ -103,6 +109,28 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
             <Label htmlFor="telefone">Telefone</Label>
             <Input id="telefone" placeholder="(00) 00000-0000" {...register("telefone")} />
             {errors.telefone && <p className="text-sm text-destructive">{errors.telefone.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="tipo">Tipo de Cliente</Label>
+            <Select
+              value={tipo}
+              onValueChange={(value) => {
+                setTipo(value);
+                setValue("tipo", value as any);
+              }}
+            >
+              <SelectTrigger id="tipo">
+                <SelectValue placeholder="Selecione o tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="requerente">Requerente</SelectItem>
+                <SelectItem value="requerido">Requerido</SelectItem>
+                <SelectItem value="exequente">Exequente</SelectItem>
+                <SelectItem value="executado">Executado</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.tipo && <p className="text-sm text-destructive">{errors.tipo.message}</p>}
           </div>
 
           <div className="flex gap-2 justify-end">
