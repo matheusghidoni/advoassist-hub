@@ -64,7 +64,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
   const fetchProcessos = async () => {
     const { data, error } = await supabase
       .from('processos')
-      .select('id, numero, clientes(nome)')
+      .select('id, numero, clientes!processos_cliente_id_fkey(nome)')
       .eq('user_id', user?.id)
       .order('numero', { ascending: true });
 

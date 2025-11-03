@@ -60,9 +60,9 @@ export default function Financeiro() {
       .from('honorarios')
       .select(`
         *,
-        processos (
+        processos!honorarios_processo_id_fkey (
           numero,
-          clientes (nome)
+          clientes!processos_cliente_id_fkey (nome)
         )
       `)
       .eq('user_id', user?.id)
