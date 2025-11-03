@@ -53,7 +53,7 @@ export default function Prazos() {
     try {
       const { data, error } = await supabase
         .from("prazos")
-        .select("*, processos(numero)")
+        .select("*, processos!prazos_processo_id_fkey(numero)")
         .order("data");
       
       if (error) throw error;

@@ -35,12 +35,12 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
   const [loading, setLoading] = useState(false);
   const [processos, setProcessos] = useState<any[]>([]);
   
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<PrazoFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<PrazoFormData>({
     resolver: zodResolver(prazoSchema),
     defaultValues: prazo ? {
       ...prazo,
       data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
-    } : { prioridade: "media" },
+    } : { prioridade: "media", tipo: "", processo_id: "" },
   });
 
   const prioridade = watch("prioridade");
@@ -68,7 +68,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         data: data.data,
         tipo: data.tipo,
         prioridade: data.prioridade,
-        processo_id: data.processo_id || null,
+        processo_id: data.processo_id && data.processo_id !== "" ? data.processo_id : null,
       };
 
       if (prazo) {
@@ -88,6 +88,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         toast.success("Prazo cadastrado com sucesso!");
       }
 
+      reset({ prioridade: "media", tipo: "", processo_id: "" });
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -157,11 +158,12 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
 
             <div className="space-y-2">
               <Label htmlFor="processo_id">Processo</Label>
-              <Select value={processo_id} onValueChange={(value) => setValue("processo_id", value)}>
+              <Select value={processo_id || ""} onValueChange={(value) => setValue("processo_id", value || "")}>
                 <SelectTrigger>
                   <SelectValue placeholder="Opcional" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Nenhum</SelectItem>
                   {processos.map((processo) => (
                     <SelectItem key={processo.id} value={processo.id}>
                       {processo.numero}
