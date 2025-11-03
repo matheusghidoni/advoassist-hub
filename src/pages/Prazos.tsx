@@ -2,12 +2,13 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PrazoForm } from "@/components/Prazos/PrazoForm";
 import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
 
 export default function Prazos() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -33,6 +42,8 @@ export default function Prazos() {
   const [editingPrazo, setEditingPrazo] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [prazoToDelete, setPrazoToDelete] = useState<any>(null);
+  const [selectedPrazo, setSelectedPrazo] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchPrazos();
@@ -213,10 +224,14 @@ export default function Prazos() {
                     {dayPrazos.map(prazo => (
                       <div
                         key={prazo.id}
-                        className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer transition-colors ${
-                          prazo.prioridade === 'high'
+                        onClick={() => {
+                          setSelectedPrazo(prazo);
+                          setDetailsDialogOpen(true);
+                        }}
+                        className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer transition-all hover:scale-105 ${
+                          prazo.prioridade === 'alta'
                             ? 'bg-destructive/20 text-destructive hover:bg-destructive/30'
-                            : prazo.prioridade === 'medium'
+                            : prazo.prioridade === 'media'
                             ? 'bg-warning/20 text-warning hover:bg-warning/30'
                             : 'bg-success/20 text-success hover:bg-success/30'
                         }`}
@@ -310,6 +325,99 @@ export default function Prazos() {
         onSuccess={fetchPrazos}
         prazo={editingPrazo}
       />
+
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Detalhes do Prazo
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedPrazo && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">{selectedPrazo.titulo}</h3>
+                <div className="flex gap-2">
+                  <Badge variant={
+                    selectedPrazo.prioridade === 'alta' ? 'destructive' :
+                    selectedPrazo.prioridade === 'media' ? 'secondary' : 'default'
+                  }>
+                    {selectedPrazo.prioridade === 'alta' ? 'Alta Prioridade' :
+                     selectedPrazo.prioridade === 'media' ? 'Média Prioridade' : 'Baixa Prioridade'}
+                  </Badge>
+                  <Badge variant="outline">{selectedPrazo.tipo}</Badge>
+                  <Badge variant={selectedPrazo.concluido ? 'default' : 'secondary'}>
+                    {selectedPrazo.concluido ? 'Concluído' : 'Pendente'}
+                  </Badge>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <CalendarIcon className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Data</p>
+                    <p className="text-sm text-muted-foreground">
+                      {format(parseISO(selectedPrazo.data), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedPrazo.processos?.numero && (
+                  <div className="flex items-start gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Processo Vinculado</p>
+                      <p className="text-sm text-muted-foreground">{selectedPrazo.processos.numero}</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedPrazo.descricao && (
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Descrição</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedPrazo.descricao}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <DialogFooter className="gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDetailsDialogOpen(false);
+                    setEditingPrazo(selectedPrazo);
+                    setFormOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Editar
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    setDetailsDialogOpen(false);
+                    setPrazoToDelete(selectedPrazo);
+                    setDeleteDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
