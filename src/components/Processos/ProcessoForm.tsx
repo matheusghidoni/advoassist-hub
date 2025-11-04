@@ -12,14 +12,24 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const processoSchema = z.object({
-  numero: z.string().min(1, "Número do processo é obrigatório"),
-  tipo: z.string().min(1, "Tipo é obrigatório"),
+  numero: z.string().regex(/^\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}$/, "Número do processo inválido (formato: 0000000-00.0000.0.00.0000)"),
+  tipo: z.string().trim().min(1, "Tipo é obrigatório").max(100, "Tipo deve ter no máximo 100 caracteres"),
   status: z.string(),
   cliente_id: z.string().optional(),
   valor: z.string().optional(),
-  vara: z.string().optional(),
-  comarca: z.string().optional(),
+  vara: z.string().trim().max(100, "Vara deve ter no máximo 100 caracteres").optional(),
+  comarca: z.string().trim().max(100, "Comarca deve ter no máximo 100 caracteres").optional(),
 });
+
+const formatProcessoNumero = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 7) return numbers;
+  if (numbers.length <= 9) return `${numbers.slice(0, 7)}-${numbers.slice(7)}`;
+  if (numbers.length <= 13) return `${numbers.slice(0, 7)}-${numbers.slice(7, 9)}.${numbers.slice(9)}`;
+  if (numbers.length <= 14) return `${numbers.slice(0, 7)}-${numbers.slice(7, 9)}.${numbers.slice(9, 13)}.${numbers.slice(13)}`;
+  if (numbers.length <= 16) return `${numbers.slice(0, 7)}-${numbers.slice(7, 9)}.${numbers.slice(9, 13)}.${numbers.slice(13, 14)}.${numbers.slice(14)}`;
+  return `${numbers.slice(0, 7)}-${numbers.slice(7, 9)}.${numbers.slice(9, 13)}.${numbers.slice(13, 14)}.${numbers.slice(14, 16)}.${numbers.slice(16, 20)}`;
+};
 
 type ProcessoFormData = z.infer<typeof processoSchema>;
 
@@ -34,9 +44,9 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<any[]>([]);
   
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ProcessoFormData>({
+  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ProcessoFormData>({
     resolver: zodResolver(processoSchema),
-    defaultValues: processo || { status: "em_andamento" },
+    defaultValues: { status: "em_andamento" },
   });
 
   const status = watch("status");
@@ -45,6 +55,22 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
   useEffect(() => {
     fetchClientes();
   }, []);
+
+  useEffect(() => {
+    if (processo) {
+      reset({
+        numero: processo.numero,
+        tipo: processo.tipo,
+        status: processo.status,
+        cliente_id: processo.cliente_id,
+        valor: processo.valor?.toString() || "",
+        vara: processo.vara || "",
+        comarca: processo.comarca || "",
+      });
+    } else {
+      reset({ status: "em_andamento" });
+    }
+  }, [processo, reset]);
 
   const fetchClientes = async () => {
     const { data } = await supabase.from("clientes").select("*").order("nome");
@@ -103,7 +129,17 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="numero">Número do Processo</Label>
-              <Input id="numero" {...register("numero")} />
+              <Input 
+                id="numero" 
+                placeholder="0000000-00.0000.0.00.0000"
+                {...register("numero")}
+                onChange={(e) => {
+                  const formatted = formatProcessoNumero(e.target.value);
+                  e.target.value = formatted;
+                  setValue("numero", formatted);
+                }}
+                maxLength={25}
+              />
               {errors.numero && <p className="text-sm text-destructive">{errors.numero.message}</p>}
             </div>
 
