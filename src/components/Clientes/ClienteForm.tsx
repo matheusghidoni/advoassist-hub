@@ -12,10 +12,10 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const clienteSchema = z.object({
-  nome: z.string().min(3, "Nome deve ter no mínimo 3 caracteres"),
-  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF inválido (formato: 000.000.000-00)"),
-  email: z.string().email("Email inválido"),
-  telefone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, "Telefone inválido (formato: (00) 00000-0000)"),
+  nome: z.string().trim().min(3, "Nome deve ter no mínimo 3 caracteres").max(100, "Nome deve ter no máximo 100 caracteres"),
+  cpf: z.string().regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, "CPF inválido"),
+  email: z.string().trim().email("Email inválido").max(255, "Email deve ter no máximo 255 caracteres"),
+  telefone: z.string().regex(/^\(\d{2}\) \d{4,5}-\d{4}$/, "Telefone inválido"),
   tipo: z.enum(["requerente", "requerido", "exequente", "executado"], {
     required_error: "Selecione o tipo de cliente",
   }),
@@ -23,6 +23,22 @@ const clienteSchema = z.object({
     required_error: "Selecione o status do cliente",
   }),
 });
+
+const formatCPF = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 3) return numbers;
+  if (numbers.length <= 6) return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+  if (numbers.length <= 9) return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+  return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+};
+
+const formatTelefone = (value: string) => {
+  const numbers = value.replace(/\D/g, "");
+  if (numbers.length <= 2) return numbers;
+  if (numbers.length <= 6) return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+  if (numbers.length <= 10) return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`;
+  return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+};
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
 
@@ -119,7 +135,17 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
 
           <div className="space-y-2">
             <Label htmlFor="cpf">CPF</Label>
-            <Input id="cpf" placeholder="000.000.000-00" {...register("cpf")} />
+            <Input 
+              id="cpf" 
+              placeholder="000.000.000-00" 
+              {...register("cpf")}
+              onChange={(e) => {
+                const formatted = formatCPF(e.target.value);
+                e.target.value = formatted;
+                setValue("cpf", formatted);
+              }}
+              maxLength={14}
+            />
             {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
           </div>
 
@@ -131,7 +157,17 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
 
           <div className="space-y-2">
             <Label htmlFor="telefone">Telefone</Label>
-            <Input id="telefone" placeholder="(00) 00000-0000" {...register("telefone")} />
+            <Input 
+              id="telefone" 
+              placeholder="(00) 00000-0000" 
+              {...register("telefone")}
+              onChange={(e) => {
+                const formatted = formatTelefone(e.target.value);
+                e.target.value = formatted;
+                setValue("telefone", formatted);
+              }}
+              maxLength={15}
+            />
             {errors.telefone && <p className="text-sm text-destructive">{errors.telefone.message}</p>}
           </div>
 
