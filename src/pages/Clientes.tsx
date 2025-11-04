@@ -4,11 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2, Users, UserCheck, UserX } from "lucide-react";
+import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2, Users, UserCheck, UserX, TrendingUp } from "lucide-react";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ClienteForm } from "@/components/Clientes/ClienteForm";
+import { startOfMonth, endOfMonth } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +84,15 @@ export default function Clientes() {
 
   const clientesAtivos = clientes.filter(c => c.status === "ativo").length;
   const clientesEncerrados = clientes.filter(c => c.status === "encerrado").length;
+  
+  const hoje = new Date();
+  const inicioMes = startOfMonth(hoje);
+  const fimMes = endOfMonth(hoje);
+  
+  const novosClientesMes = clientes.filter(c => {
+    const dataCliente = new Date(c.created_at);
+    return dataCliente >= inicioMes && dataCliente <= fimMes;
+  }).length;
 
   return (
     <MainLayout>
@@ -103,7 +113,7 @@ export default function Clientes() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <StatsCard
             title="Total de Clientes"
             value={clientes.length}
@@ -120,6 +130,12 @@ export default function Clientes() {
             title="Clientes Encerrados"
             value={clientesEncerrados}
             icon={UserX}
+            variant="default"
+          />
+          <StatsCard
+            title="Novos Este Mês"
+            value={novosClientesMes}
+            icon={TrendingUp}
             variant="default"
           />
         </div>
