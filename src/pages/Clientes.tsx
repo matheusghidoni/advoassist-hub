@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2, Users, UserCheck, UserX } from "lucide-react";
+import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ClienteForm } from "@/components/Clientes/ClienteForm";
@@ -80,6 +81,9 @@ export default function Clientes() {
     cliente.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const clientesAtivos = clientes.filter(c => c.status === "ativo").length;
+  const clientesEncerrados = clientes.filter(c => c.status === "encerrado").length;
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -96,6 +100,28 @@ export default function Clientes() {
             <Plus className="h-4 w-4" />
             Novo Cliente
           </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatsCard
+            title="Total de Clientes"
+            value={clientes.length}
+            icon={Users}
+            variant="default"
+          />
+          <StatsCard
+            title="Clientes Ativos"
+            value={clientesAtivos}
+            icon={UserCheck}
+            variant="success"
+          />
+          <StatsCard
+            title="Clientes Encerrados"
+            value={clientesEncerrados}
+            icon={UserX}
+            variant="default"
+          />
         </div>
 
         {/* Search and Filters */}
@@ -141,7 +167,9 @@ export default function Clientes() {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-semibold text-foreground">{cliente.nome}</h3>
-                          <Badge variant="secondary">ativo</Badge>
+                          <Badge variant={cliente.status === "ativo" ? "default" : "secondary"}>
+                            {cliente.status === "ativo" ? "Ativo" : "Encerrado"}
+                          </Badge>
                           {cliente.tipo && (
                             <Badge variant="outline">
                               {cliente.tipo === "requerente" && "Requerente"}

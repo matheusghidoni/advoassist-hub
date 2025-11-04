@@ -19,6 +19,9 @@ const clienteSchema = z.object({
   tipo: z.enum(["requerente", "requerido", "exequente", "executado"], {
     required_error: "Selecione o tipo de cliente",
   }),
+  status: z.enum(["ativo", "encerrado"], {
+    required_error: "Selecione o status do cliente",
+  }),
 });
 
 type ClienteFormData = z.infer<typeof clienteSchema>;
@@ -33,10 +36,11 @@ interface ClienteFormProps {
 export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteFormProps) {
   const [loading, setLoading] = useState(false);
   const [tipo, setTipo] = useState<string>(cliente?.tipo || "requerente");
+  const [status, setStatus] = useState<string>(cliente?.status || "ativo");
   
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClienteFormData>({
     resolver: zodResolver(clienteSchema),
-    defaultValues: cliente || { tipo: "requerente" },
+    defaultValues: cliente || { tipo: "requerente", status: "ativo" },
   });
 
   const onSubmit = async (data: ClienteFormData) => {
@@ -51,6 +55,7 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
         email: data.email,
         telefone: data.telefone,
         tipo: data.tipo,
+        status: data.status,
       };
 
       if (cliente) {
@@ -131,6 +136,26 @@ export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteF
               </SelectContent>
             </Select>
             {errors.tipo && <p className="text-sm text-destructive">{errors.tipo.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select
+              value={status}
+              onValueChange={(value) => {
+                setStatus(value);
+                setValue("status", value as any);
+              }}
+            >
+              <SelectTrigger id="status">
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ativo">Ativo</SelectItem>
+                <SelectItem value="encerrado">Encerrado</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
           </div>
 
           <div className="flex gap-2 justify-end">
