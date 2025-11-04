@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,13 +35,32 @@ interface ClienteFormProps {
 
 export function ClienteForm({ open, onOpenChange, onSuccess, cliente }: ClienteFormProps) {
   const [loading, setLoading] = useState(false);
-  const [tipo, setTipo] = useState<string>(cliente?.tipo || "requerente");
-  const [status, setStatus] = useState<string>(cliente?.status || "ativo");
+  const [tipo, setTipo] = useState<string>("requerente");
+  const [status, setStatus] = useState<string>("ativo");
   
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ClienteFormData>({
     resolver: zodResolver(clienteSchema),
-    defaultValues: cliente || { tipo: "requerente", status: "ativo" },
+    defaultValues: { tipo: "requerente", status: "ativo" },
   });
+
+  useEffect(() => {
+    if (cliente) {
+      reset({
+        nome: cliente.nome,
+        cpf: cliente.cpf,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        tipo: cliente.tipo,
+        status: cliente.status,
+      });
+      setTipo(cliente.tipo);
+      setStatus(cliente.status);
+    } else {
+      reset({ tipo: "requerente", status: "ativo" });
+      setTipo("requerente");
+      setStatus("ativo");
+    }
+  }, [cliente, reset]);
 
   const onSubmit = async (data: ClienteFormData) => {
     setLoading(true);
