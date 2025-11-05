@@ -40,7 +40,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
     resolver: zodResolver(prazoSchema),
     defaultValues: prazo ? {
       ...prazo,
-      data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
+      data: prazo.data ? prazo.data.split('T')[0] : "",
     } : { prioridade: "media", tipo: "", processo_id: undefined, concluido: false },
   });
 
@@ -58,7 +58,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
       reset({
         titulo: prazo.titulo,
         descricao: prazo.descricao || "",
-        data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
+        data: prazo.data ? prazo.data.split('T')[0] : "",
         tipo: prazo.tipo,
         prioridade: prazo.prioridade,
         processo_id: prazo.processo_id || undefined,
