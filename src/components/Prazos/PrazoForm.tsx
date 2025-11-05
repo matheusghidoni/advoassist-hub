@@ -51,6 +51,21 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
     fetchProcessos();
   }, []);
 
+  useEffect(() => {
+    if (prazo) {
+      reset({
+        titulo: prazo.titulo,
+        descricao: prazo.descricao || "",
+        data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
+        tipo: prazo.tipo,
+        prioridade: prazo.prioridade,
+        processo_id: prazo.processo_id || "",
+      });
+    } else {
+      reset({ prioridade: "media", tipo: "", processo_id: "", titulo: "", descricao: "", data: "" });
+    }
+  }, [prazo, reset]);
+
   const fetchProcessos = async () => {
     const { data } = await supabase.from("processos").select("*").order("numero");
     if (data) setProcessos(data);
