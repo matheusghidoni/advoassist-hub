@@ -40,7 +40,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
     defaultValues: prazo ? {
       ...prazo,
       data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
-    } : { prioridade: "media", tipo: "", processo_id: "" },
+    } : { prioridade: "media", tipo: "", processo_id: undefined },
   });
 
   const prioridade = watch("prioridade");
@@ -59,10 +59,10 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
         tipo: prazo.tipo,
         prioridade: prazo.prioridade,
-        processo_id: prazo.processo_id || "",
+        processo_id: prazo.processo_id || undefined,
       });
     } else {
-      reset({ prioridade: "media", tipo: "", processo_id: "", titulo: "", descricao: "", data: "" });
+      reset({ prioridade: "media", tipo: "", processo_id: undefined, titulo: "", descricao: "", data: "" });
     }
   }, [prazo, reset]);
 
@@ -83,7 +83,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         data: data.data,
         tipo: data.tipo,
         prioridade: data.prioridade,
-        processo_id: data.processo_id && data.processo_id !== "" ? data.processo_id : null,
+        processo_id: data.processo_id || null,
       };
 
       if (prazo) {
@@ -103,7 +103,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         toast.success("Prazo cadastrado com sucesso!");
       }
 
-      reset({ prioridade: "media", tipo: "", processo_id: "" });
+      reset({ prioridade: "media", tipo: "", processo_id: undefined });
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -172,13 +172,12 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="processo_id">Processo</Label>
-              <Select value={processo_id || ""} onValueChange={(value) => setValue("processo_id", value || "")}>
+              <Label htmlFor="processo_id">Processo (Opcional)</Label>
+              <Select value={processo_id || undefined} onValueChange={(value) => setValue("processo_id", value)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Opcional" />
+                  <SelectValue placeholder="Nenhum processo vinculado" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
                   {processos.map((processo) => (
                     <SelectItem key={processo.id} value={processo.id}>
                       {processo.numero}
