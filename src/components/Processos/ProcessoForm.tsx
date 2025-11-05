@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const processoSchema = z.object({
-  numero: z.string().regex(/^\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}$/, "Número do processo inválido (formato: 0000000-00.0000.0.00.0000)"),
+  numero: z.string().trim().min(1, "Número do processo é obrigatório"),
   tipo: z.string().trim().min(1, "Tipo é obrigatório").max(100, "Tipo deve ter no máximo 100 caracteres"),
   status: z.string(),
   cliente_id: z.string().optional(),
