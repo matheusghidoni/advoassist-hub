@@ -20,6 +20,7 @@ const prazoSchema = z.object({
   tipo: z.string().min(1, "Tipo é obrigatório"),
   prioridade: z.string(),
   processo_id: z.string().optional(),
+  concluido: z.boolean(),
 });
 
 type PrazoFormData = z.infer<typeof prazoSchema>;
@@ -40,12 +41,13 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
     defaultValues: prazo ? {
       ...prazo,
       data: prazo.data ? format(new Date(prazo.data), "yyyy-MM-dd") : "",
-    } : { prioridade: "media", tipo: "", processo_id: undefined },
+    } : { prioridade: "media", tipo: "", processo_id: undefined, concluido: false },
   });
 
   const prioridade = watch("prioridade");
   const tipo = watch("tipo");
   const processo_id = watch("processo_id");
+  const concluido = watch("concluido");
 
   useEffect(() => {
     fetchProcessos();
@@ -60,9 +62,10 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         tipo: prazo.tipo,
         prioridade: prazo.prioridade,
         processo_id: prazo.processo_id || undefined,
+        concluido: prazo.concluido || false,
       });
     } else {
-      reset({ prioridade: "media", tipo: "", processo_id: undefined, titulo: "", descricao: "", data: "" });
+      reset({ prioridade: "media", tipo: "", processo_id: undefined, titulo: "", descricao: "", data: "", concluido: false });
     }
   }, [prazo, reset]);
 
@@ -84,6 +87,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         tipo: data.tipo,
         prioridade: data.prioridade,
         processo_id: data.processo_id || null,
+        concluido: data.concluido,
       };
 
       if (prazo) {
@@ -103,7 +107,7 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
         toast.success("Prazo cadastrado com sucesso!");
       }
 
-      reset({ prioridade: "media", tipo: "", processo_id: undefined });
+      reset({ prioridade: "media", tipo: "", processo_id: undefined, concluido: false });
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -172,20 +176,33 @@ export function PrazoForm({ open, onOpenChange, onSuccess, prazo }: PrazoFormPro
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="processo_id">Processo (Opcional)</Label>
-              <Select value={processo_id || undefined} onValueChange={(value) => setValue("processo_id", value)}>
+              <Label htmlFor="concluido">Status</Label>
+              <Select value={concluido ? "true" : "false"} onValueChange={(value) => setValue("concluido", value === "true")}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Nenhum processo vinculado" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {processos.map((processo) => (
-                    <SelectItem key={processo.id} value={processo.id}>
-                      {processo.numero}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="false">Pendente</SelectItem>
+                  <SelectItem value="true">Concluído</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="processo_id">Processo (Opcional)</Label>
+            <Select value={processo_id || undefined} onValueChange={(value) => setValue("processo_id", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Nenhum processo vinculado" />
+              </SelectTrigger>
+              <SelectContent>
+                {processos.map((processo) => (
+                  <SelectItem key={processo.id} value={processo.id}>
+                    {processo.numero}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex gap-2 justify-end">
