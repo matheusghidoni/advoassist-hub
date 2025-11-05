@@ -42,7 +42,7 @@ export default function Processos() {
     try {
       const { data, error } = await supabase
         .from("processos")
-        .select("*, clientes(nome)")
+        .select("*, clientes!processos_cliente_id_fkey(nome)")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
