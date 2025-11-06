@@ -79,6 +79,12 @@ export default function Processos() {
     processo.tipo.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calcular estatísticas reais
+  const emAndamento = processos.filter(p => p.status === 'em_andamento').length;
+  const suspensos = processos.filter(p => p.status === 'suspenso').length;
+  const concluidos = processos.filter(p => p.status === 'concluido').length;
+  const arquivados = processos.filter(p => p.status === 'arquivado').length;
+
   const getStatusVariant = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
       active: { label: "Em andamento", className: "bg-status-active text-success-foreground" },
@@ -127,25 +133,25 @@ export default function Processos() {
         <div className="grid gap-4 md:grid-cols-4">
           <Card className="p-4 shadow-card">
             <div className="text-center">
-              <p className="text-2xl font-bold text-status-active">15</p>
+              <p className="text-2xl font-bold text-status-active">{emAndamento}</p>
               <p className="text-sm text-muted-foreground">Em andamento</p>
             </div>
           </Card>
           <Card className="p-4 shadow-card">
             <div className="text-center">
-              <p className="text-2xl font-bold text-status-pending">5</p>
+              <p className="text-2xl font-bold text-status-pending">{suspensos}</p>
               <p className="text-sm text-muted-foreground">Suspensos</p>
             </div>
           </Card>
           <Card className="p-4 shadow-card">
             <div className="text-center">
-              <p className="text-2xl font-bold text-status-completed">8</p>
+              <p className="text-2xl font-bold text-status-completed">{concluidos}</p>
               <p className="text-sm text-muted-foreground">Concluídos</p>
             </div>
           </Card>
           <Card className="p-4 shadow-card">
             <div className="text-center">
-              <p className="text-2xl font-bold text-status-archived">3</p>
+              <p className="text-2xl font-bold text-status-archived">{arquivados}</p>
               <p className="text-sm text-muted-foreground">Arquivados</p>
             </div>
           </Card>

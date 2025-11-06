@@ -117,6 +117,34 @@ export default function Prazos() {
     });
   };
 
+  // Calcular estatísticas reais
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const prazosHoje = prazos.filter(p => {
+    const prazoDate = parseISO(p.data);
+    prazoDate.setHours(0, 0, 0, 0);
+    return prazoDate.getTime() === today.getTime() && !p.concluido;
+  }).length;
+
+  const sevenDaysFromNow = new Date(today);
+  sevenDaysFromNow.setDate(today.getDate() + 7);
+  
+  const prazosProximos7Dias = prazos.filter(p => {
+    const prazoDate = parseISO(p.data);
+    prazoDate.setHours(0, 0, 0, 0);
+    return prazoDate >= today && prazoDate <= sevenDaysFromNow && !p.concluido;
+  }).length;
+
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(today.getDate() + 3);
+  
+  const prazosCriticos = prazos.filter(p => {
+    const prazoDate = parseISO(p.data);
+    prazoDate.setHours(0, 0, 0, 0);
+    return prazoDate >= today && prazoDate <= threeDaysFromNow && !p.concluido;
+  }).length;
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -141,7 +169,7 @@ export default function Prazos() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Hoje</p>
-                <p className="text-2xl font-bold text-foreground">2</p>
+                <p className="text-2xl font-bold text-foreground">{prazosHoje}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
                 <CalendarIcon className="h-6 w-6 text-primary" />
@@ -152,7 +180,7 @@ export default function Prazos() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Próximos 7 dias</p>
-                <p className="text-2xl font-bold text-warning">7</p>
+                <p className="text-2xl font-bold text-warning">{prazosProximos7Dias}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/10">
                 <Clock className="h-6 w-6 text-warning" />
@@ -163,7 +191,7 @@ export default function Prazos() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Críticos (&lt; 3 dias)</p>
-                <p className="text-2xl font-bold text-destructive">3</p>
+                <p className="text-2xl font-bold text-destructive">{prazosCriticos}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
                 <Clock className="h-6 w-6 text-destructive" />
