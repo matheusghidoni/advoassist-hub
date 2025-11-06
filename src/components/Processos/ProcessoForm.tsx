@@ -159,6 +159,7 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                  <SelectItem value="suspenso">Suspenso</SelectItem>
                   <SelectItem value="concluido">Concluído</SelectItem>
                   <SelectItem value="arquivado">Arquivado</SelectItem>
                 </SelectContent>

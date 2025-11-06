@@ -87,12 +87,12 @@ export default function Processos() {
 
   const getStatusVariant = (status: string) => {
     const variants: Record<string, { label: string; className: string }> = {
-      active: { label: "Em andamento", className: "bg-status-active text-success-foreground" },
-      pending: { label: "Suspenso", className: "bg-status-pending text-warning-foreground" },
-      completed: { label: "Concluído", className: "bg-status-completed text-primary-foreground" },
-      archived: { label: "Arquivado", className: "bg-status-archived text-muted-foreground" },
+      em_andamento: { label: "Em andamento", className: "bg-status-active text-success-foreground" },
+      suspenso: { label: "Suspenso", className: "bg-status-pending text-warning-foreground" },
+      concluido: { label: "Concluído", className: "bg-status-completed text-primary-foreground" },
+      arquivado: { label: "Arquivado", className: "bg-status-archived text-muted-foreground" },
     };
-    return variants[status] || variants.active;
+    return variants[status] || variants.em_andamento;
   };
 
   return (
