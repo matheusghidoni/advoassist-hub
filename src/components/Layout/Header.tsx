@@ -14,12 +14,38 @@ import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { NotificacoesPopover } from "@/components/Notificacoes/NotificacoesPopover";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Header() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { state } = useSidebar();
   const sidebarWidth = state === "collapsed" ? "3.5rem" : "16rem";
+  const [fullName, setFullName] = useState<string>("");
+
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        setFullName(data.full_name || '');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -27,8 +53,17 @@ export function Header() {
   };
 
   const getUserInitials = () => {
-    if (!user?.email) return 'U';
-    return user.email.charAt(0).toUpperCase();
+    if (fullName) {
+      const names = fullName.trim().split(' ');
+      if (names.length >= 2) {
+        return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase();
+      }
+      return fullName.charAt(0).toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
   };
 
   return (
@@ -65,7 +100,9 @@ export function Header() {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Minha Conta</p>
+                  <p className="text-sm font-medium leading-none">
+                    {fullName || 'Minha Conta'}
+                  </p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email}
                   </p>
