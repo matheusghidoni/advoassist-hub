@@ -12,10 +12,14 @@ import { toast } from "sonner";
 export default function Configuracoes() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingOffice, setLoadingOffice] = useState(false);
   const [fullName, setFullName] = useState("");
   const [oab, setOab] = useState("");
   const [phone, setPhone] = useState("");
   const [specialization, setSpecialization] = useState("");
+  const [officeName, setOfficeName] = useState("");
+  const [cnpj, setCnpj] = useState("");
+  const [officeAddress, setOfficeAddress] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -38,6 +42,9 @@ export default function Configuracoes() {
         setOab(data.oab || '');
         setPhone(data.phone || '');
         setSpecialization(data.specialization || '');
+        setOfficeName(data.office_name || '');
+        setCnpj(data.cnpj || '');
+        setOfficeAddress(data.office_address || '');
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -71,6 +78,31 @@ export default function Configuracoes() {
       toast.error('Erro ao atualizar perfil');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateOffice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingOffice(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          office_name: officeName,
+          cnpj: cnpj,
+          office_address: officeAddress,
+        })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      toast.success('Dados do escritório atualizados com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar escritório:', error);
+      toast.error('Erro ao atualizar dados do escritório');
+    } finally {
+      setLoadingOffice(false);
     }
   };
 
@@ -146,27 +178,46 @@ export default function Configuracoes() {
 
         {/* Escritório */}
         <Card className="p-6 shadow-card">
-          <div className="mb-4 flex items-center gap-2">
-            <Building2 className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Dados do Escritório</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="escritorio">Nome do Escritório</Label>
-              <Input id="escritorio" defaultValue="Demo Advocacia" />
+          <form onSubmit={handleUpdateOffice}>
+            <div className="mb-4 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Dados do Escritório</h2>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ</Label>
-              <Input id="cnpj" defaultValue="12.345.678/0001-90" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="escritorio">Nome do Escritório</Label>
+                <Input 
+                  id="escritorio" 
+                  value={officeName}
+                  onChange={(e) => setOfficeName(e.target.value)}
+                  placeholder="Nome do escritório"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input 
+                  id="cnpj" 
+                  value={cnpj}
+                  onChange={(e) => setCnpj(e.target.value)}
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="endereco">Endereço</Label>
+                <Input 
+                  id="endereco" 
+                  value={officeAddress}
+                  onChange={(e) => setOfficeAddress(e.target.value)}
+                  placeholder="Endereço completo do escritório"
+                />
+              </div>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="endereco">Endereço</Label>
-              <Input id="endereco" defaultValue="Av. Paulista, 1000 - São Paulo/SP" />
+            <div className="mt-4">
+              <Button type="submit" disabled={loadingOffice}>
+                {loadingOffice ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
             </div>
-          </div>
-          <div className="mt-4">
-            <Button>Salvar Alterações</Button>
-          </div>
+          </form>
         </Card>
 
         {/* Notificações */}

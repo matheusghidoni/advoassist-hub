@@ -260,10 +260,13 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          cnpj: string | null
           created_at: string
           full_name: string | null
           id: string
           oab: string | null
+          office_address: string | null
+          office_name: string | null
           phone: string | null
           signature: string | null
           specialization: string | null
@@ -271,10 +274,13 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          cnpj?: string | null
           created_at?: string
           full_name?: string | null
           id: string
           oab?: string | null
+          office_address?: string | null
+          office_name?: string | null
           phone?: string | null
           signature?: string | null
           specialization?: string | null
@@ -282,10 +288,13 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          cnpj?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
           oab?: string | null
+          office_address?: string | null
+          office_name?: string | null
           phone?: string | null
           signature?: string | null
           specialization?: string | null
