@@ -4,8 +4,76 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Building2, Bell, Lock } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function Configuracoes() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [oab, setOab] = useState("");
+  const [phone, setPhone] = useState("");
+  const [specialization, setSpecialization] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user?.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setFullName(data.full_name || '');
+        setOab(data.oab || '');
+        setPhone(data.phone || '');
+        setSpecialization(data.specialization || '');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar perfil:', error);
+      toast.error('Erro ao carregar dados do perfil');
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: fullName,
+          oab: oab,
+          phone: phone,
+          specialization: specialization,
+        })
+        .eq('id', user?.id);
+
+      if (error) throw error;
+
+      toast.success('Perfil atualizado com sucesso!');
+      
+      // Recarregar a página para atualizar o avatar
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      toast.error('Erro ao atualizar perfil');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -17,31 +85,63 @@ export default function Configuracoes() {
 
         {/* Perfil */}
         <Card className="p-6 shadow-card">
-          <div className="mb-4 flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Perfil do Advogado</h2>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome Completo</Label>
-              <Input id="nome" defaultValue="Advogado Demo" />
+          <form onSubmit={handleUpdateProfile}>
+            <div className="mb-4 flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Perfil do Advogado</h2>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="oab">OAB</Label>
-              <Input id="oab" defaultValue="123.456/SP" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="nome">Nome Completo</Label>
+                <Input 
+                  id="nome" 
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="oab">OAB</Label>
+                <Input 
+                  id="oab" 
+                  value={oab}
+                  onChange={(e) => setOab(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={user?.email || ''} 
+                  disabled
+                  className="bg-muted"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input 
+                  id="telefone" 
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="especialidade">Especialização</Label>
+                <Input 
+                  id="especialidade" 
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="Ex: Direito Civil, Trabalhista, etc."
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="advogado@demo.com" />
+            <div className="mt-4">
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Telefone</Label>
-              <Input id="telefone" defaultValue="(11) 98765-4321" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button>Salvar Alterações</Button>
-          </div>
+          </form>
         </Card>
 
         {/* Escritório */}
