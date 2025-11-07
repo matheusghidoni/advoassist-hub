@@ -8,7 +8,7 @@ import {
   Scale,
   Settings
 } from "lucide-react";
-import {
+import { 
   Sidebar,
   SidebarContent,
   SidebarGroup,
@@ -28,6 +28,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -42,6 +45,35 @@ export function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
+  const { user } = useAuth();
+  const [fullName, setFullName] = useState("");
+  const [oab, setOab] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name,oab')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (data) {
+        setFullName(data.full_name || "");
+        setOab(data.oab || "");
+      }
+    };
+    load();
+  }, [user]);
+
+  const getInitials = () => {
+    if (fullName) {
+      const names = fullName.trim().split(' ');
+      const first = names[0]?.[0] || '';
+      const last = names.length > 1 ? names[names.length - 1][0] : '';
+      return `${first}${last}`.toUpperCase() || 'U';
+    }
+    return user?.email?.charAt(0).toUpperCase() || 'U';
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -102,12 +134,14 @@ export function AppSidebar() {
         <div className="border-t p-2">
           <div className={`flex items-center gap-3 rounded-lg bg-sidebar-accent/50 p-2 ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground font-semibold shrink-0">
-              AD
+              {getInitials()}
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-sidebar-foreground truncate">Advogado Demo</p>
-                <p className="text-xs text-sidebar-foreground/60 truncate">OAB/SP 123.456</p>
+                <p className="text-sm font-medium text-sidebar-foreground truncate">{fullName || user?.email || 'Minha Conta'}</p>
+                {oab ? (
+                  <p className="text-xs text-sidebar-foreground/60 truncate">OAB {oab}</p>
+                ) : null}
               </div>
             )}
           </div>
