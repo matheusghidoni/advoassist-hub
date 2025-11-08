@@ -58,9 +58,11 @@ export type Database = {
           created_at: string
           data_vencimento: string | null
           id: string
+          numero_parcelas: number | null
           observacoes: string | null
           processo_id: string | null
           status: string
+          tipo_pagamento: string
           updated_at: string
           user_id: string
           valor_pago: number
@@ -70,9 +72,11 @@ export type Database = {
           created_at?: string
           data_vencimento?: string | null
           id?: string
+          numero_parcelas?: number | null
           observacoes?: string | null
           processo_id?: string | null
           status?: string
+          tipo_pagamento?: string
           updated_at?: string
           user_id: string
           valor_pago?: number
@@ -82,9 +86,11 @@ export type Database = {
           created_at?: string
           data_vencimento?: string | null
           id?: string
+          numero_parcelas?: number | null
           observacoes?: string | null
           processo_id?: string | null
           status?: string
+          tipo_pagamento?: string
           updated_at?: string
           user_id?: string
           valor_pago?: number

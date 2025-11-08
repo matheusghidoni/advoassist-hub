@@ -33,7 +33,9 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
     valor_pago: '',
     data_vencimento: '',
     status: 'pendente',
-    observacoes: ''
+    observacoes: '',
+    tipo_pagamento: 'a_vista',
+    numero_parcelas: ''
   });
 
   useEffect(() => {
@@ -46,7 +48,9 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
           valor_pago: editingHonorario.valor_pago?.toString() || '',
           data_vencimento: editingHonorario.data_vencimento || '',
           status: editingHonorario.status || 'pendente',
-          observacoes: editingHonorario.observacoes || ''
+          observacoes: editingHonorario.observacoes || '',
+          tipo_pagamento: editingHonorario.tipo_pagamento || 'a_vista',
+          numero_parcelas: editingHonorario.numero_parcelas?.toString() || ''
         });
       } else {
         setFormData({
@@ -55,7 +59,9 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
           valor_pago: '',
           data_vencimento: '',
           status: 'pendente',
-          observacoes: ''
+          observacoes: '',
+          tipo_pagamento: 'a_vista',
+          numero_parcelas: ''
         });
       }
     }
@@ -88,7 +94,9 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
         valor_pago: parseFloat(formData.valor_pago || '0'),
         data_vencimento: formData.data_vencimento || null,
         status: formData.status,
-        observacoes: formData.observacoes || null
+        observacoes: formData.observacoes || null,
+        tipo_pagamento: formData.tipo_pagamento,
+        numero_parcelas: formData.tipo_pagamento === 'parcelado' ? parseInt(formData.numero_parcelas) : null
       };
 
       if (editingHonorario) {
@@ -172,6 +180,39 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
                 onChange={(e) => setFormData({ ...formData, valor_pago: e.target.value })}
               />
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="tipo_pagamento">Tipo de Pagamento *</Label>
+              <Select
+                value={formData.tipo_pagamento}
+                onValueChange={(value) => setFormData({ ...formData, tipo_pagamento: value, numero_parcelas: value === 'a_vista' ? '' : formData.numero_parcelas })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="a_vista">À Vista</SelectItem>
+                  <SelectItem value="parcelado">Parcelado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.tipo_pagamento === 'parcelado' && (
+              <div className="space-y-2">
+                <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
+                <Input
+                  id="numero_parcelas"
+                  type="number"
+                  min="2"
+                  placeholder="Ex: 12"
+                  value={formData.numero_parcelas}
+                  onChange={(e) => setFormData({ ...formData, numero_parcelas: e.target.value })}
+                  required
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
