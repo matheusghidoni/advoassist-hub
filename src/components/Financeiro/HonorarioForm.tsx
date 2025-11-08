@@ -30,6 +30,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
   const [formData, setFormData] = useState({
     processo_id: '',
     valor_total: '',
+    valor_entrada: '',
     valor_pago: '',
     data_vencimento: '',
     status: 'pendente',
@@ -45,6 +46,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
         setFormData({
           processo_id: editingHonorario.processo_id || '',
           valor_total: editingHonorario.valor_total?.toString() || '',
+          valor_entrada: editingHonorario.valor_entrada?.toString() || '',
           valor_pago: editingHonorario.valor_pago?.toString() || '',
           data_vencimento: editingHonorario.data_vencimento || '',
           status: editingHonorario.status || 'pendente',
@@ -56,6 +58,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
         setFormData({
           processo_id: '',
           valor_total: '',
+          valor_entrada: '',
           valor_pago: '',
           data_vencimento: '',
           status: 'pendente',
@@ -91,6 +94,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
         user_id: user?.id,
         processo_id: formData.processo_id || null,
         valor_total: parseFloat(formData.valor_total),
+        valor_entrada: parseFloat(formData.valor_entrada || '0'),
         valor_pago: parseFloat(formData.valor_pago || '0'),
         data_vencimento: formData.data_vencimento || null,
         status: formData.status,
@@ -155,17 +159,29 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="valor_total">Valor Total *</Label>
+            <Input
+              id="valor_total"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.valor_total}
+              onChange={(e) => setFormData({ ...formData, valor_total: e.target.value })}
+              required
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valor_total">Valor Total *</Label>
+              <Label htmlFor="valor_entrada">Valor de Entrada</Label>
               <Input
-                id="valor_total"
+                id="valor_entrada"
                 type="number"
                 step="0.01"
                 placeholder="0.00"
-                value={formData.valor_total}
-                onChange={(e) => setFormData({ ...formData, valor_total: e.target.value })}
-                required
+                value={formData.valor_entrada}
+                onChange={(e) => setFormData({ ...formData, valor_entrada: e.target.value })}
               />
             </div>
 
@@ -200,18 +216,38 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
             </div>
 
             {formData.tipo_pagamento === 'parcelado' && (
-              <div className="space-y-2">
-                <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
-                <Input
-                  id="numero_parcelas"
-                  type="number"
-                  min="2"
-                  placeholder="Ex: 12"
-                  value={formData.numero_parcelas}
-                  onChange={(e) => setFormData({ ...formData, numero_parcelas: e.target.value })}
-                  required
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="numero_parcelas">Número de Parcelas *</Label>
+                  <Input
+                    id="numero_parcelas"
+                    type="number"
+                    min="2"
+                    placeholder="Ex: 12"
+                    value={formData.numero_parcelas}
+                    onChange={(e) => setFormData({ ...formData, numero_parcelas: e.target.value })}
+                    required
+                  />
+                </div>
+                {formData.numero_parcelas && formData.valor_total && (
+                  <div className="col-span-2 p-3 bg-muted/50 rounded-md">
+                    <p className="text-sm text-muted-foreground">
+                      Valor por parcela:{' '}
+                      <span className="font-semibold text-foreground">
+                        R$ {(
+                          (parseFloat(formData.valor_total) - parseFloat(formData.valor_entrada || '0')) / 
+                          parseInt(formData.numero_parcelas)
+                        ).toFixed(2)}
+                      </span>
+                    </p>
+                    {formData.valor_entrada && parseFloat(formData.valor_entrada) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        (Saldo restante após entrada de R$ {parseFloat(formData.valor_entrada).toFixed(2)})
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
 

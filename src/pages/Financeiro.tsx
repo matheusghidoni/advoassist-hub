@@ -29,10 +29,13 @@ interface Honorario {
   id: string;
   processo_id: string | null;
   valor_total: number;
+  valor_entrada: number;
   valor_pago: number;
   data_vencimento: string | null;
   status: string;
   observacoes: string | null;
+  tipo_pagamento: string;
+  numero_parcelas: number | null;
   processos: {
     numero: string;
     clientes: {
@@ -278,7 +281,7 @@ export default function Financeiro() {
                       </div>
                     </div>
                     
-                    <div className="space-y-2">
+                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">
                           R$ {honorario.valor_pago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / 
@@ -295,6 +298,23 @@ export default function Financeiro() {
                           style={{ width: `${percentual}%` }}
                         />
                       </div>
+                      
+                      {honorario.tipo_pagamento === 'parcelado' && honorario.numero_parcelas && (
+                        <div className="p-2 bg-muted/50 rounded-md mt-2">
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">Parcelado em {honorario.numero_parcelas}x</span>
+                            {' - '}Valor por parcela: R$ {(
+                              (honorario.valor_total - (honorario.valor_entrada || 0)) / honorario.numero_parcelas
+                            ).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                          {honorario.valor_entrada > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Entrada: R$ {honorario.valor_entrada.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
                       {honorario.observacoes && (
                         <p className="text-sm text-muted-foreground mt-2">
                           {honorario.observacoes}

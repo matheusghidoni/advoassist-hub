@@ -65,6 +65,7 @@ export type Database = {
           tipo_pagamento: string
           updated_at: string
           user_id: string
+          valor_entrada: number
           valor_pago: number
           valor_total: number
         }
@@ -79,6 +80,7 @@ export type Database = {
           tipo_pagamento?: string
           updated_at?: string
           user_id: string
+          valor_entrada?: number
           valor_pago?: number
           valor_total: number
         }
@@ -93,6 +95,7 @@ export type Database = {
           tipo_pagamento?: string
           updated_at?: string
           user_id?: string
+          valor_entrada?: number
           valor_pago?: number
           valor_total?: number
         }
