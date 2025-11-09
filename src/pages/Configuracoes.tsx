@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { User, Building2, Bell, Lock } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
@@ -20,6 +21,10 @@ export default function Configuracoes() {
   const [officeName, setOfficeName] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [officeAddress, setOfficeAddress] = useState("");
+  const [emailPrazos, setEmailPrazos] = useState(true);
+  const [emailHonorarios, setEmailHonorarios] = useState(true);
+  const [emailProcessos, setEmailProcessos] = useState(true);
+  const [notificationPrefsId, setNotificationPrefsId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -45,6 +50,42 @@ export default function Configuracoes() {
         setOfficeName(data.office_name || '');
         setCnpj(data.cnpj || '');
         setOfficeAddress(data.office_address || '');
+      }
+
+      // Load notification preferences
+      const { data: notifData, error: notifError } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', user?.id)
+        .maybeSingle();
+
+      if (notifError && notifError.code !== 'PGRST116') {
+        console.error('Erro ao carregar preferências de notificação:', notifError);
+      }
+
+      if (notifData) {
+        setNotificationPrefsId(notifData.id);
+        setEmailPrazos(notifData.email_prazos);
+        setEmailHonorarios(notifData.email_honorarios);
+        setEmailProcessos(notifData.email_processos);
+      } else {
+        // Create default notification preferences if they don't exist
+        const { data: newPrefs, error: createError } = await supabase
+          .from('notification_preferences')
+          .insert({
+            user_id: user?.id,
+            email_prazos: true,
+            email_honorarios: true,
+            email_processos: true
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Erro ao criar preferências de notificação:', createError);
+        } else if (newPrefs) {
+          setNotificationPrefsId(newPrefs.id);
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar perfil:', error);
@@ -103,6 +144,22 @@ export default function Configuracoes() {
       toast.error('Erro ao atualizar dados do escritório');
     } finally {
       setLoadingOffice(false);
+    }
+  };
+
+  const handleUpdateNotificationPreference = async (field: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('notification_preferences')
+        .update({ [field]: value })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast.success('Preferência de notificação atualizada!');
+    } catch (error) {
+      console.error('Erro ao atualizar preferência:', error);
+      toast.error('Erro ao atualizar preferência de notificação');
     }
   };
 
@@ -224,22 +281,62 @@ export default function Configuracoes() {
         <Card className="p-6 shadow-card">
           <div className="mb-4 flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Notificações</h2>
+            <h2 className="text-lg font-semibold text-foreground">Notificações por Email</h2>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Email</p>
-                <p className="text-sm text-muted-foreground">Receber alertas de prazos por email</p>
+              <div className="space-y-0.5">
+                <Label htmlFor="email-prazos" className="text-base font-medium">
+                  Prazos
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receber notificações sobre prazos vencidos e próximos do vencimento
+                </p>
               </div>
-              <Button variant="outline">Ativado</Button>
+              <Switch
+                id="email-prazos"
+                checked={emailPrazos}
+                onCheckedChange={(checked) => {
+                  setEmailPrazos(checked);
+                  handleUpdateNotificationPreference('email_prazos', checked);
+                }}
+              />
             </div>
             <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">WhatsApp</p>
-                <p className="text-sm text-muted-foreground">Receber alertas de prazos por WhatsApp</p>
+              <div className="space-y-0.5">
+                <Label htmlFor="email-honorarios" className="text-base font-medium">
+                  Honorários
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receber notificações sobre honorários vencidos e pagamentos pendentes
+                </p>
               </div>
-              <Button variant="outline">Configurar</Button>
+              <Switch
+                id="email-honorarios"
+                checked={emailHonorarios}
+                onCheckedChange={(checked) => {
+                  setEmailHonorarios(checked);
+                  handleUpdateNotificationPreference('email_honorarios', checked);
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="email-processos" className="text-base font-medium">
+                  Processos
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Receber notificações sobre atualizações em processos
+                </p>
+              </div>
+              <Switch
+                id="email-processos"
+                checked={emailProcessos}
+                onCheckedChange={(checked) => {
+                  setEmailProcessos(checked);
+                  handleUpdateNotificationPreference('email_processos', checked);
+                }}
+              />
             </div>
           </div>
         </Card>
