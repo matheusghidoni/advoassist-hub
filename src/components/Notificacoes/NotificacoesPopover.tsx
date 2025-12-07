@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Bell, Check, Trash2, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Bell, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 interface Notificacao {
   id: string;
@@ -28,6 +29,8 @@ export function NotificacoesPopover() {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { permission, showNotification } = usePushNotifications();
+  const previousNotificacoesRef = useRef<string[]>([]);
 
   const fetchNotificacoes = async () => {
     if (!user) return;
@@ -43,7 +46,31 @@ export function NotificacoesPopover() {
       return;
     }
 
-    setNotificacoes(data || []);
+    const newNotificacoes = data || [];
+    
+    // Verificar se há novas notificações não lidas para enviar push
+    if (permission === "granted" && previousNotificacoesRef.current.length > 0) {
+      const newIds = newNotificacoes
+        .filter((n) => !n.lida)
+        .map((n) => n.id);
+      
+      const previousIds = previousNotificacoesRef.current;
+      const brandNewNotifications = newNotificacoes.filter(
+        (n) => !n.lida && !previousIds.includes(n.id)
+      );
+
+      // Enviar push para novas notificações
+      brandNewNotifications.forEach((notif) => {
+        showNotification(notif.titulo, {
+          body: notif.mensagem,
+          tag: notif.id,
+        });
+      });
+    }
+
+    // Atualizar referência de IDs
+    previousNotificacoesRef.current = newNotificacoes.map((n) => n.id);
+    setNotificacoes(newNotificacoes);
   };
 
   useEffect(() => {
@@ -68,7 +95,7 @@ export function NotificacoesPopover() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [user, permission]);
 
   const marcarComoLida = async (id: string) => {
     const { error } = await supabase
