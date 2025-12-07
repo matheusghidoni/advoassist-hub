@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, Building2, Bell, Lock } from "lucide-react";
+import { User, Building2, Bell, Lock, BellRing } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export default function Configuracoes() {
   const { user } = useAuth();
+  const { isSupported, permission, requestPermission } = usePushNotifications();
   const [loading, setLoading] = useState(false);
   const [loadingOffice, setLoadingOffice] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -25,6 +27,15 @@ export default function Configuracoes() {
   const [emailHonorarios, setEmailHonorarios] = useState(true);
   const [emailProcessos, setEmailProcessos] = useState(true);
   const [notificationPrefsId, setNotificationPrefsId] = useState<string | null>(null);
+
+  const handleEnablePushNotifications = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      toast.success("Notificações push ativadas!");
+    } else {
+      toast.error("Permissão para notificações negada");
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -277,7 +288,43 @@ export default function Configuracoes() {
           </form>
         </Card>
 
-        {/* Notificações */}
+        {/* Notificações Push */}
+        <Card className="p-6 shadow-card">
+          <div className="mb-4 flex items-center gap-2">
+            <BellRing className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Notificações Push</h2>
+          </div>
+          <div className="space-y-4">
+            {isSupported ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Receba notificações diretamente no seu navegador, mesmo quando o sistema estiver minimizado.
+                </p>
+                {permission === "granted" ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <Bell className="h-4 w-4" />
+                    <span className="text-sm font-medium">Notificações push ativadas</span>
+                  </div>
+                ) : permission === "denied" ? (
+                  <div className="text-sm text-destructive">
+                    <p>Permissão negada. Para ativar, altere as configurações do navegador.</p>
+                  </div>
+                ) : (
+                  <Button onClick={handleEnablePushNotifications} variant="outline">
+                    <BellRing className="mr-2 h-4 w-4" />
+                    Ativar Notificações Push
+                  </Button>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Seu navegador não suporta notificações push.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Notificações por Email */}
         <Card className="p-6 shadow-card">
           <div className="mb-4 flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
