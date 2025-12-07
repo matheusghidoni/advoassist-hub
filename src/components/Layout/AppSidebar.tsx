@@ -6,7 +6,8 @@ import {
   Calendar, 
   DollarSign,
   Scale,
-  Settings
+  Settings,
+  Bell
 } from "lucide-react";
 import { 
   Sidebar,
@@ -38,6 +39,7 @@ const menuItems = [
   { icon: FileText, label: "Processos", path: "/processos" },
   { icon: Calendar, label: "Prazos", path: "/prazos" },
   { icon: DollarSign, label: "Financeiro", path: "/financeiro" },
+  { icon: Bell, label: "Notificações", path: "/notificacoes" },
   { icon: Settings, label: "Configurações", path: "/configuracoes" },
 ];
 
