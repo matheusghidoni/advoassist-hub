@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, Building2, Bell, Lock, BellRing } from "lucide-react";
+import { User, Building2, Bell, Lock, BellRing, RefreshCw } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,7 @@ export default function Configuracoes() {
   const { isSupported, permission, requestPermission } = usePushNotifications();
   const [loading, setLoading] = useState(false);
   const [loadingOffice, setLoadingOffice] = useState(false);
+  const [checkingDeadlines, setCheckingDeadlines] = useState(false);
   const [fullName, setFullName] = useState("");
   const [oab, setOab] = useState("");
   const [phone, setPhone] = useState("");
@@ -34,6 +35,26 @@ export default function Configuracoes() {
       toast.success("Notificações push ativadas!");
     } else {
       toast.error("Permissão para notificações negada");
+    }
+  };
+
+  const handleCheckDeadlines = async () => {
+    setCheckingDeadlines(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("check-deadline-notifications");
+      
+      if (error) throw error;
+      
+      if (data?.notifications_created?.length > 0) {
+        toast.success(`${data.notifications_created.length} notificação(ões) criada(s)!`);
+      } else {
+        toast.info("Nenhum prazo próximo do vencimento encontrado");
+      }
+    } catch (error: any) {
+      console.error("Erro ao verificar prazos:", error);
+      toast.error("Erro ao verificar prazos");
+    } finally {
+      setCheckingDeadlines(false);
     }
   };
 
@@ -321,6 +342,20 @@ export default function Configuracoes() {
                 Seu navegador não suporta notificações push.
               </p>
             )}
+            
+            <div className="border-t pt-4 mt-4">
+              <p className="text-sm text-muted-foreground mb-3">
+                Verificar manualmente prazos próximos do vencimento e gerar notificações.
+              </p>
+              <Button 
+                onClick={handleCheckDeadlines} 
+                variant="outline"
+                disabled={checkingDeadlines}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${checkingDeadlines ? 'animate-spin' : ''}`} />
+                {checkingDeadlines ? 'Verificando...' : 'Verificar Prazos Agora'}
+              </Button>
+            </div>
           </div>
         </Card>
 
