@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PrazoForm } from "@/components/Prazos/PrazoForm";
@@ -35,6 +36,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 export default function Prazos() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [prazos, setPrazos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +50,20 @@ export default function Prazos() {
   useEffect(() => {
     fetchPrazos();
   }, []);
+
+  // Handle URL parameter for direct navigation from notifications
+  useEffect(() => {
+    const prazoId = searchParams.get("id");
+    if (prazoId && prazos.length > 0) {
+      const prazo = prazos.find(p => p.id === prazoId);
+      if (prazo) {
+        setSelectedPrazo(prazo);
+        setDetailsDialogOpen(true);
+        // Clear the URL parameter after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, prazos]);
 
   const fetchPrazos = async () => {
     try {
