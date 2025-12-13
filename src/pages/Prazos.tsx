@@ -2,7 +2,14 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle, Filter } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +53,11 @@ export default function Prazos() {
   const [prazoToDelete, setPrazoToDelete] = useState<any>(null);
   const [selectedPrazo, setSelectedPrazo] = useState<any>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  
+  // Filters
+  const [filterStatus, setFilterStatus] = useState<string>("todos");
+  const [filterPrioridade, setFilterPrioridade] = useState<string>("todas");
+  const [filterTipo, setFilterTipo] = useState<string>("todos");
 
   useEffect(() => {
     fetchPrazos();
@@ -120,12 +132,21 @@ export default function Prazos() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
+  // Apply filters to prazos
+  const filteredPrazos = prazos.filter(p => {
+    const statusMatch = filterStatus === "todos" || 
+      (filterStatus === "pendente" && !p.concluido) || 
+      (filterStatus === "concluido" && p.concluido);
+    const prioridadeMatch = filterPrioridade === "todas" || p.prioridade === filterPrioridade;
+    const tipoMatch = filterTipo === "todos" || p.tipo === filterTipo;
+    return statusMatch && prioridadeMatch && tipoMatch;
+  });
+
   const getPrazosByDay = (day: number) => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    const targetDate = new Date(year, month, day);
     
-    return prazos.filter(p => {
+    return filteredPrazos.filter(p => {
       const prazoDate = parseISO(p.data);
       return prazoDate.getDate() === day && 
              prazoDate.getMonth() === month && 
@@ -292,14 +313,54 @@ export default function Prazos() {
 
         {/* Upcoming Deadlines List */}
         <Card className="p-6 shadow-card">
-          <h2 className="mb-4 text-lg font-semibold text-foreground">Próximos Prazos</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Próximos Prazos</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="concluido">Concluído</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterPrioridade} onValueChange={setFilterPrioridade}>
+                <SelectTrigger className="w-[130px]">
+                  <SelectValue placeholder="Prioridade" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas</SelectItem>
+                  <SelectItem value="alta">Alta</SelectItem>
+                  <SelectItem value="media">Média</SelectItem>
+                  <SelectItem value="baixa">Baixa</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterTipo} onValueChange={setFilterTipo}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="audiencia">Audiência</SelectItem>
+                  <SelectItem value="prazo_processual">Prazo Processual</SelectItem>
+                  <SelectItem value="reuniao">Reunião</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <div className="space-y-3">
             {loading ? (
               <p className="text-center text-muted-foreground">Carregando...</p>
-            ) : prazos.length === 0 ? (
-              <p className="text-center text-muted-foreground">Nenhum prazo cadastrado</p>
+            ) : filteredPrazos.length === 0 ? (
+              <p className="text-center text-muted-foreground">
+                {prazos.length === 0 ? "Nenhum prazo cadastrado" : "Nenhum prazo corresponde aos filtros selecionados"}
+              </p>
             ) : (
-              prazos.map(prazo => {
+              filteredPrazos.map(prazo => {
                 const prazoDate = parseISO(prazo.data);
                 return (
                   <div
