@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      cliente_documentos: {
+        Row: {
+          caminho_storage: string
+          cliente_id: string
+          created_at: string
+          id: string
+          nome_arquivo: string
+          tamanho_bytes: number | null
+          tipo_mime: string | null
+          user_id: string
+        }
+        Insert: {
+          caminho_storage: string
+          cliente_id: string
+          created_at?: string
+          id?: string
+          nome_arquivo: string
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+          user_id: string
+        }
+        Update: {
+          caminho_storage?: string
+          cliente_id?: string
+          created_at?: string
+          id?: string
+          nome_arquivo?: string
+          tamanho_bytes?: number | null
+          tipo_mime?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cliente_documentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           cpf: string

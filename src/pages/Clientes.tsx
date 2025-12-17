@@ -4,11 +4,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2, Users, UserCheck, UserX, TrendingUp } from "lucide-react";
+import { Plus, Search, MoreVertical, FileText, Phone, Mail, Pencil, Trash2, Users, UserCheck, UserX, TrendingUp, FolderOpen } from "lucide-react";
 import { StatsCard } from "@/components/Dashboard/StatsCard";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ClienteForm } from "@/components/Clientes/ClienteForm";
+import { ClienteDocumentos } from "@/components/Clientes/ClienteDocumentos";
 import { startOfMonth, endOfMonth } from "date-fns";
 import {
   DropdownMenu,
@@ -35,6 +36,8 @@ export default function Clientes() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [clienteToDelete, setClienteToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [documentosOpen, setDocumentosOpen] = useState(false);
+  const [selectedClienteForDocs, setSelectedClienteForDocs] = useState<{ id: string; nome: string } | null>(null);
 
   useEffect(() => {
     fetchClientes();
@@ -220,6 +223,13 @@ export default function Clientes() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => {
+                        setSelectedClienteForDocs({ id: cliente.id, nome: cliente.nome });
+                        setDocumentosOpen(true);
+                      }}>
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Documentos
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => {
                         setEditingCliente(cliente);
                         setFormOpen(true);
                       }}>
@@ -250,6 +260,12 @@ export default function Clientes() {
         onOpenChange={setFormOpen}
         onSuccess={fetchClientes}
         cliente={editingCliente}
+      />
+
+      <ClienteDocumentos
+        open={documentosOpen}
+        onOpenChange={setDocumentosOpen}
+        cliente={selectedClienteForDocs}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
