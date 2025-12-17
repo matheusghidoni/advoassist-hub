@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, FileText, Trash2, Download, Loader2, File } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Loader2, File, Eye, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -42,6 +42,9 @@ export function ClienteDocumentos({ open, onOpenChange, cliente }: ClienteDocume
   const [documentos, setDocumentos] = useState<Documento[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<Documento | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [documentoToDelete, setDocumentoToDelete] = useState<Documento | null>(null);
 
@@ -166,6 +169,44 @@ export function ClienteDocumentos({ open, onOpenChange, cliente }: ClienteDocume
     }
   };
 
+  const handlePreview = async (documento: Documento) => {
+    const isPreviewable = documento.tipo_mime?.includes("pdf") || documento.tipo_mime?.includes("image");
+    if (!isPreviewable) {
+      toast.error("Este tipo de arquivo não pode ser visualizado");
+      return;
+    }
+
+    setLoadingPreview(true);
+    setPreviewDoc(documento);
+    try {
+      const { data, error } = await supabase.storage
+        .from("client-documents")
+        .download(documento.caminho_storage);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      setPreviewUrl(url);
+    } catch (error) {
+      toast.error("Erro ao carregar preview");
+      setPreviewDoc(null);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setPreviewDoc(null);
+  };
+
+  const canPreview = (mimeType: string | null) => {
+    return mimeType?.includes("pdf") || mimeType?.includes("image");
+  };
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "N/A";
     if (bytes < 1024) return `${bytes} B`;
@@ -245,6 +286,16 @@ export function ClienteDocumentos({ open, onOpenChange, cliente }: ClienteDocume
                       </div>
                     </div>
                     <div className="flex gap-1">
+                      {canPreview(doc.tipo_mime) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePreview(doc)}
+                          title="Visualizar"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -288,6 +339,49 @@ export function ClienteDocumentos({ open, onOpenChange, cliente }: ClienteDocume
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Preview Modal */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && closePreview()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center justify-between pr-8">
+              <span className="truncate">{previewDoc?.nome_arquivo}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto p-4 bg-muted/30 flex items-center justify-center min-h-[400px]">
+            {loadingPreview ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : previewUrl ? (
+              previewDoc?.tipo_mime?.includes("pdf") ? (
+                <iframe
+                  src={previewUrl}
+                  className="w-full h-[70vh] rounded border"
+                  title={previewDoc?.nome_arquivo}
+                />
+              ) : previewDoc?.tipo_mime?.includes("image") ? (
+                <img
+                  src={previewUrl}
+                  alt={previewDoc?.nome_arquivo}
+                  className="max-w-full max-h-[70vh] object-contain rounded"
+                />
+              ) : null
+            ) : null}
+          </div>
+
+          <div className="p-4 border-t flex justify-end gap-2">
+            <Button variant="outline" onClick={closePreview}>
+              Fechar
+            </Button>
+            {previewDoc && (
+              <Button onClick={() => handleDownload(previewDoc)}>
+                <Download className="h-4 w-4 mr-2" />
+                Baixar
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
