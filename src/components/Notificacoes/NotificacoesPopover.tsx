@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, Check, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { toast as sonnerToast } from "sonner";
 
 interface Notificacao {
   id: string;
@@ -27,12 +28,14 @@ interface Notificacao {
 export function NotificacoesPopover() {
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [open, setOpen] = useState(false);
+  const [hasNewNotification, setHasNewNotification] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { permission, showNotification } = usePushNotifications();
   const previousNotificacoesRef = useRef<string[]>([]);
+  const isInitialLoadRef = useRef(true);
 
-  const fetchNotificacoes = async () => {
+  const fetchNotificacoes = useCallback(async () => {
     if (!user) return;
 
     const { data, error } = await supabase
@@ -49,53 +52,94 @@ export function NotificacoesPopover() {
     const newNotificacoes = data || [];
     
     // Verificar se há novas notificações não lidas para enviar push
-    if (permission === "granted" && previousNotificacoesRef.current.length > 0) {
-      const newIds = newNotificacoes
-        .filter((n) => !n.lida)
-        .map((n) => n.id);
-      
+    if (!isInitialLoadRef.current && previousNotificacoesRef.current.length > 0) {
       const previousIds = previousNotificacoesRef.current;
       const brandNewNotifications = newNotificacoes.filter(
         (n) => !n.lida && !previousIds.includes(n.id)
       );
 
-      // Enviar push para novas notificações
+      // Mostrar toast e push para novas notificações
       brandNewNotifications.forEach((notif) => {
-        showNotification(notif.titulo, {
-          body: notif.mensagem,
-          tag: notif.id,
+        // Toast visual
+        const toastType = notif.tipo === 'urgente' ? 'warning' : 'info';
+        sonnerToast[toastType](notif.titulo, {
+          description: notif.mensagem,
+          duration: 5000,
         });
+
+        // Push notification
+        if (permission === "granted") {
+          showNotification(notif.titulo, {
+            body: notif.mensagem,
+            tag: notif.id,
+          });
+        }
+
+        // Animate badge
+        setHasNewNotification(true);
+        setTimeout(() => setHasNewNotification(false), 2000);
       });
     }
 
+    isInitialLoadRef.current = false;
     // Atualizar referência de IDs
     previousNotificacoesRef.current = newNotificacoes.map((n) => n.id);
     setNotificacoes(newNotificacoes);
-  };
+  }, [user, permission, showNotification]);
 
   useEffect(() => {
+    if (!user) return;
+
     fetchNotificacoes();
 
+    // Subscribe to realtime changes
     const channel = supabase
-      .channel("notificacoes-changes")
+      .channel("notificacoes-realtime")
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "notificacoes",
-          filter: `user_id=eq.${user?.id}`,
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Nova notificação recebida:", payload);
+          fetchNotificacoes();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notificacoes",
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchNotificacoes();
         }
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "notificacoes",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchNotificacoes();
+        }
+      )
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, permission]);
+  }, [user, fetchNotificacoes]);
 
   const marcarComoLida = async (id: string) => {
     const { error } = await supabase
@@ -187,11 +231,11 @@ export function NotificacoesPopover() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+          <Bell className={`h-5 w-5 transition-transform ${hasNewNotification ? 'animate-bounce text-primary' : ''}`} />
           {naoLidas > 0 && (
             <Badge
               variant="destructive"
-              className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"
+              className={`absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs ${hasNewNotification ? 'animate-pulse' : ''}`}
             >
               {naoLidas}
             </Badge>
