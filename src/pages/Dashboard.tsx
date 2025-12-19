@@ -8,6 +8,7 @@ import { ClienteForm } from "@/components/Clientes/ClienteForm";
 import { ProcessoForm } from "@/components/Processos/ProcessoForm";
 import { PrazoForm } from "@/components/Prazos/PrazoForm";
 import { supabase } from "@/integrations/supabase/client";
+import { useDeadlineCheck } from "@/hooks/useDeadlineCheck";
 import { 
   FileText, 
   Users, 
@@ -23,6 +24,9 @@ export default function Dashboard() {
   const [clienteFormOpen, setClienteFormOpen] = useState(false);
   const [processoFormOpen, setProcessoFormOpen] = useState(false);
   const [prazoFormOpen, setPrazoFormOpen] = useState(false);
+  
+  // Automatic deadline check on app access
+  useDeadlineCheck();
   
   const [stats, setStats] = useState({
     processosAtivos: 0,
