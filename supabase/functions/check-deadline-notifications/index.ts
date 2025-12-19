@@ -44,7 +44,7 @@ serve(async (req) => {
         tipo,
         concluido,
         processo_id,
-        processos (numero)
+        processos!fk_prazos_processo (numero)
       `)
       .eq("concluido", false)
       .in("data", [todayStr, oneDayStr, threeDaysStr]);
