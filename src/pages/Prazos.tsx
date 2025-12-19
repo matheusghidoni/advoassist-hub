@@ -270,10 +270,10 @@ export default function Prazos() {
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dayPrazos = getPrazosByDay(day);
-              const today = new Date();
-              const isToday = day === today.getDate() && 
-                            currentDate.getMonth() === today.getMonth() && 
-                            currentDate.getFullYear() === today.getFullYear();
+              const todayCheck = new Date();
+              const isToday = day === todayCheck.getDate() && 
+                            currentDate.getMonth() === todayCheck.getMonth() && 
+                            currentDate.getFullYear() === todayCheck.getFullYear();
               
               return (
                 <div
@@ -286,28 +286,70 @@ export default function Prazos() {
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayPrazos.map(prazo => (
-                      <div
-                        key={prazo.id}
-                        onClick={() => {
-                          setSelectedPrazo(prazo);
-                          setDetailsDialogOpen(true);
-                        }}
-                        className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer transition-all hover:scale-105 ${
-                          prazo.prioridade === 'alta'
-                            ? 'bg-destructive/20 text-destructive hover:bg-destructive/30'
-                            : prazo.prioridade === 'media'
-                            ? 'bg-warning/20 text-warning hover:bg-warning/30'
-                            : 'bg-success/20 text-success hover:bg-success/30'
-                        }`}
-                      >
-                        {prazo.titulo}
-                      </div>
-                    ))}
+                    {dayPrazos.map(prazo => {
+                      const prazoDate = parseISO(prazo.data);
+                      prazoDate.setHours(0, 0, 0, 0);
+                      const todayDate = new Date();
+                      todayDate.setHours(0, 0, 0, 0);
+                      const diffDays = Math.ceil((prazoDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      // Determine color based on status
+                      let colorClass = '';
+                      if (prazo.concluido) {
+                        // Completed - Green
+                        colorClass = 'bg-success/20 text-success hover:bg-success/30 border-l-2 border-l-success';
+                      } else if (diffDays < 0) {
+                        // Overdue - Dark red
+                        colorClass = 'bg-destructive/30 text-destructive hover:bg-destructive/40 border-l-2 border-l-destructive';
+                      } else if (diffDays <= 3) {
+                        // Critical (within 3 days) - Red
+                        colorClass = 'bg-destructive/20 text-destructive hover:bg-destructive/30 border-l-2 border-l-destructive';
+                      } else if (diffDays <= 7) {
+                        // Near deadline (within 7 days) - Orange/Warning
+                        colorClass = 'bg-warning/20 text-warning hover:bg-warning/30 border-l-2 border-l-warning';
+                      } else {
+                        // Normal pending - Blue/Primary
+                        colorClass = 'bg-primary/20 text-primary hover:bg-primary/30 border-l-2 border-l-primary';
+                      }
+                      
+                      return (
+                        <div
+                          key={prazo.id}
+                          onClick={() => {
+                            setSelectedPrazo(prazo);
+                            setDetailsDialogOpen(true);
+                          }}
+                          className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer transition-all hover:scale-105 ${colorClass}`}
+                        >
+                          {prazo.titulo}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
             })}
+          </div>
+          
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">
+            <span className="text-muted-foreground font-medium">Legenda:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-success/30 border-l-2 border-l-success"></div>
+              <span className="text-muted-foreground">Concluído</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-primary/30 border-l-2 border-l-primary"></div>
+              <span className="text-muted-foreground">Pendente</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-warning/30 border-l-2 border-l-warning"></div>
+              <span className="text-muted-foreground">Próximo (≤7 dias)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded bg-destructive/30 border-l-2 border-l-destructive"></div>
+              <span className="text-muted-foreground">Crítico (≤3 dias) / Atrasado</span>
+            </div>
           </div>
         </Card>
 
