@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +20,12 @@ const processoSchema = z.object({
   valor: z.string().optional(),
   vara: z.string().trim().max(100, "Vara deve ter no máximo 100 caracteres").optional(),
   comarca: z.string().trim().max(100, "Comarca deve ter no máximo 100 caracteres").optional(),
+  // Campos de prazo
+  prazo_data: z.string().optional(),
+  prazo_titulo: z.string().optional(),
+  prazo_tipo: z.string().optional(),
+  prazo_prioridade: z.string().optional(),
+  prazo_descricao: z.string().optional(),
 });
 
 const formatProcessoNumero = (value: string) => {
@@ -56,6 +63,9 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
     fetchClientes();
   }, []);
 
+  const prazo_tipo = watch("prazo_tipo");
+  const prazo_prioridade = watch("prazo_prioridade");
+
   useEffect(() => {
     if (processo) {
       reset({
@@ -66,9 +76,14 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         valor: processo.valor?.toString() || "",
         vara: processo.vara || "",
         comarca: processo.comarca || "",
+        prazo_data: "",
+        prazo_titulo: "",
+        prazo_tipo: "",
+        prazo_prioridade: "media",
+        prazo_descricao: "",
       });
     } else {
-      reset({ status: "em_andamento" });
+      reset({ status: "em_andamento", prazo_prioridade: "media" });
     }
   }, [processo, reset]);
 
@@ -93,6 +108,8 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         cliente_id: data.cliente_id || null,
       };
 
+      let processoId = processo?.id;
+
       if (processo) {
         const { error } = await supabase
           .from("processos")
@@ -102,12 +119,40 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         if (error) throw error;
         toast.success("Processo atualizado com sucesso!");
       } else {
-        const { error } = await supabase
+        const { data: newProcesso, error } = await supabase
           .from("processos")
-          .insert([{ ...payload, user_id: user.id }]);
+          .insert([{ ...payload, user_id: user.id }])
+          .select()
+          .single();
         
         if (error) throw error;
+        processoId = newProcesso.id;
         toast.success("Processo cadastrado com sucesso!");
+      }
+
+      // Criar prazo se os campos de prazo foram preenchidos
+      if (data.prazo_data && data.prazo_titulo && data.prazo_tipo && processoId) {
+        const prazoPayload = {
+          user_id: user.id,
+          processo_id: processoId,
+          data: data.prazo_data,
+          titulo: data.prazo_titulo,
+          tipo: data.prazo_tipo,
+          prioridade: data.prazo_prioridade || "media",
+          descricao: data.prazo_descricao || null,
+          concluido: false,
+        };
+
+        const { error: prazoError } = await supabase
+          .from("prazos")
+          .insert([prazoPayload]);
+
+        if (prazoError) {
+          console.error("Erro ao criar prazo:", prazoError);
+          toast.warning("Processo salvo, mas houve erro ao criar o prazo");
+        } else {
+          toast.success("Prazo vinculado criado com sucesso!");
+        }
       }
 
       onOpenChange(false);
@@ -198,6 +243,60 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
           <div className="space-y-2">
             <Label htmlFor="comarca">Comarca</Label>
             <Input id="comarca" {...register("comarca")} />
+          </div>
+
+          {/* Seção de Prazo */}
+          <div className="border-t pt-4 mt-4">
+            <h3 className="text-sm font-medium mb-3 text-muted-foreground">Adicionar Prazo (opcional)</h3>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prazo_titulo">Título do Prazo</Label>
+                <Input id="prazo_titulo" placeholder="Ex: Audiência inicial" {...register("prazo_titulo")} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="prazo_data">Data do Prazo</Label>
+                <Input id="prazo_data" type="date" {...register("prazo_data")} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="prazo_tipo">Tipo do Prazo</Label>
+                <Select value={prazo_tipo} onValueChange={(value) => setValue("prazo_tipo", value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="audiencia">Audiência</SelectItem>
+                    <SelectItem value="contestacao">Contestação</SelectItem>
+                    <SelectItem value="recurso">Recurso</SelectItem>
+                    <SelectItem value="peticao">Petição</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="prazo_prioridade">Prioridade</Label>
+                <Select value={prazo_prioridade || "media"} onValueChange={(value) => setValue("prazo_prioridade", value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="alta">Alta</SelectItem>
+                    <SelectItem value="media">Média</SelectItem>
+                    <SelectItem value="baixa">Baixa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2 mt-4">
+              <Label htmlFor="prazo_descricao">Descrição do Prazo</Label>
+              <Textarea id="prazo_descricao" placeholder="Detalhes adicionais..." {...register("prazo_descricao")} />
+            </div>
           </div>
 
           <div className="flex gap-2 justify-end">
