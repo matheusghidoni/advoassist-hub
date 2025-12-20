@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Calendar } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 const processoSchema = z.object({
   numero: z.string().trim().min(1, "Número do processo é obrigatório"),
@@ -20,12 +21,6 @@ const processoSchema = z.object({
   valor: z.string().optional(),
   vara: z.string().trim().max(100, "Vara deve ter no máximo 100 caracteres").optional(),
   comarca: z.string().trim().max(100, "Comarca deve ter no máximo 100 caracteres").optional(),
-  // Campos de prazo
-  prazo_data: z.string().optional(),
-  prazo_titulo: z.string().optional(),
-  prazo_tipo: z.string().optional(),
-  prazo_prioridade: z.string().optional(),
-  prazo_descricao: z.string().optional(),
 });
 
 const formatProcessoNumero = (value: string) => {
@@ -40,6 +35,15 @@ const formatProcessoNumero = (value: string) => {
 
 type ProcessoFormData = z.infer<typeof processoSchema>;
 
+interface PrazoItem {
+  id: string;
+  titulo: string;
+  data: string;
+  tipo: string;
+  prioridade: string;
+  descricao: string;
+}
+
 interface ProcessoFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,9 +51,19 @@ interface ProcessoFormProps {
   processo?: any;
 }
 
+const createEmptyPrazo = (): PrazoItem => ({
+  id: crypto.randomUUID(),
+  titulo: "",
+  data: "",
+  tipo: "",
+  prioridade: "media",
+  descricao: "",
+});
+
 export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: ProcessoFormProps) {
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState<any[]>([]);
+  const [prazos, setPrazos] = useState<PrazoItem[]>([]);
   
   const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<ProcessoFormData>({
     resolver: zodResolver(processoSchema),
@@ -63,9 +77,6 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
     fetchClientes();
   }, []);
 
-  const prazo_tipo = watch("prazo_tipo");
-  const prazo_prioridade = watch("prazo_prioridade");
-
   useEffect(() => {
     if (processo) {
       reset({
@@ -76,20 +87,29 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         valor: processo.valor?.toString() || "",
         vara: processo.vara || "",
         comarca: processo.comarca || "",
-        prazo_data: "",
-        prazo_titulo: "",
-        prazo_tipo: "",
-        prazo_prioridade: "media",
-        prazo_descricao: "",
       });
+      setPrazos([]);
     } else {
-      reset({ status: "em_andamento", prazo_prioridade: "media" });
+      reset({ status: "em_andamento" });
+      setPrazos([]);
     }
   }, [processo, reset]);
 
   const fetchClientes = async () => {
     const { data } = await supabase.from("clientes").select("*").order("nome");
     if (data) setClientes(data);
+  };
+
+  const addPrazo = () => {
+    setPrazos([...prazos, createEmptyPrazo()]);
+  };
+
+  const removePrazo = (id: string) => {
+    setPrazos(prazos.filter(p => p.id !== id));
+  };
+
+  const updatePrazo = (id: string, field: keyof PrazoItem, value: string) => {
+    setPrazos(prazos.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const onSubmit = async (data: ProcessoFormData) => {
@@ -130,28 +150,30 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         toast.success("Processo cadastrado com sucesso!");
       }
 
-      // Criar prazo se os campos de prazo foram preenchidos
-      if (data.prazo_data && data.prazo_titulo && data.prazo_tipo && processoId) {
-        const prazoPayload = {
+      // Criar prazos válidos
+      const prazosValidos = prazos.filter(p => p.titulo && p.data && p.tipo);
+      
+      if (prazosValidos.length > 0 && processoId) {
+        const prazosPayload = prazosValidos.map(prazo => ({
           user_id: user.id,
           processo_id: processoId,
-          data: data.prazo_data,
-          titulo: data.prazo_titulo,
-          tipo: data.prazo_tipo,
-          prioridade: data.prazo_prioridade || "media",
-          descricao: data.prazo_descricao || null,
+          data: prazo.data,
+          titulo: prazo.titulo.trim(),
+          tipo: prazo.tipo,
+          prioridade: prazo.prioridade || "media",
+          descricao: prazo.descricao?.trim() || null,
           concluido: false,
-        };
+        }));
 
         const { error: prazoError } = await supabase
           .from("prazos")
-          .insert([prazoPayload]);
+          .insert(prazosPayload);
 
         if (prazoError) {
-          console.error("Erro ao criar prazo:", prazoError);
-          toast.warning("Processo salvo, mas houve erro ao criar o prazo");
+          console.error("Erro ao criar prazos:", prazoError);
+          toast.warning(`Processo salvo, mas houve erro ao criar ${prazosValidos.length} prazo(s)`);
         } else {
-          toast.success("Prazo vinculado criado com sucesso!");
+          toast.success(`${prazosValidos.length} prazo(s) vinculado(s) criado(s) com sucesso!`);
         }
       }
 
@@ -166,7 +188,7 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{processo ? "Editar Processo" : "Novo Processo"}</DialogTitle>
         </DialogHeader>
@@ -245,61 +267,117 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
             <Input id="comarca" {...register("comarca")} />
           </div>
 
-          {/* Seção de Prazo */}
+          {/* Seção de Prazos Múltiplos */}
           <div className="border-t pt-4 mt-4">
-            <h3 className="text-sm font-medium mb-3 text-muted-foreground">Adicionar Prazo (opcional)</h3>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-medium text-muted-foreground">
+                  Prazos ({prazos.length})
+                </h3>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addPrazo}>
+                <Plus className="h-4 w-4 mr-1" />
+                Adicionar Prazo
+              </Button>
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="prazo_titulo">Título do Prazo</Label>
-                <Input id="prazo_titulo" placeholder="Ex: Audiência inicial" {...register("prazo_titulo")} />
-              </div>
+            {prazos.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4 bg-muted/30 rounded-md">
+                Nenhum prazo adicionado. Clique em "Adicionar Prazo" para vincular prazos a este processo.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {prazos.map((prazo, index) => (
+                  <Card key={prazo.id} className="p-4 relative">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => removePrazo(prazo.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    
+                    <div className="pr-10">
+                      <p className="text-xs font-medium text-muted-foreground mb-3">Prazo {index + 1}</p>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Título *</Label>
+                          <Input
+                            placeholder="Ex: Audiência inicial"
+                            value={prazo.titulo}
+                            onChange={(e) => updatePrazo(prazo.id, "titulo", e.target.value)}
+                          />
+                        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="prazo_data">Data do Prazo</Label>
-                <Input id="prazo_data" type="date" {...register("prazo_data")} />
-              </div>
-            </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Data *</Label>
+                          <Input
+                            type="date"
+                            value={prazo.data}
+                            onChange={(e) => updatePrazo(prazo.id, "data", e.target.value)}
+                          />
+                        </div>
+                      </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="prazo_tipo">Tipo do Prazo</Label>
-                <Select value={prazo_tipo} onValueChange={(value) => setValue("prazo_tipo", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="audiencia">Audiência</SelectItem>
-                    <SelectItem value="contestacao">Contestação</SelectItem>
-                    <SelectItem value="recurso">Recurso</SelectItem>
-                    <SelectItem value="peticao">Petição</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Tipo *</Label>
+                          <Select 
+                            value={prazo.tipo} 
+                            onValueChange={(value) => updatePrazo(prazo.id, "tipo", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="audiencia">Audiência</SelectItem>
+                              <SelectItem value="contestacao">Contestação</SelectItem>
+                              <SelectItem value="recurso">Recurso</SelectItem>
+                              <SelectItem value="peticao">Petição</SelectItem>
+                              <SelectItem value="outro">Outro</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="prazo_prioridade">Prioridade</Label>
-                <Select value={prazo_prioridade || "media"} onValueChange={(value) => setValue("prazo_prioridade", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="alta">Alta</SelectItem>
-                    <SelectItem value="media">Média</SelectItem>
-                    <SelectItem value="baixa">Baixa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Prioridade</Label>
+                          <Select 
+                            value={prazo.prioridade} 
+                            onValueChange={(value) => updatePrazo(prazo.id, "prioridade", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="alta">Alta</SelectItem>
+                              <SelectItem value="media">Média</SelectItem>
+                              <SelectItem value="baixa">Baixa</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
 
-            <div className="space-y-2 mt-4">
-              <Label htmlFor="prazo_descricao">Descrição do Prazo</Label>
-              <Textarea id="prazo_descricao" placeholder="Detalhes adicionais..." {...register("prazo_descricao")} />
-            </div>
+                      <div className="space-y-1 mt-3">
+                        <Label className="text-xs">Descrição</Label>
+                        <Textarea
+                          placeholder="Detalhes adicionais..."
+                          value={prazo.descricao}
+                          onChange={(e) => updatePrazo(prazo.id, "descricao", e.target.value)}
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
