@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2, Clock, AlertCircle } from "lucide-react";
+import { format, isPast, isToday, isTomorrow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ProcessoForm } from "@/components/Processos/ProcessoForm";
@@ -42,7 +44,7 @@ export default function Processos() {
     try {
       const { data, error } = await supabase
         .from("processos")
-        .select("*, clientes!processos_cliente_id_fkey(nome)")
+        .select("*, clientes!processos_cliente_id_fkey(nome), prazos!fk_prazos_processo(*)")
         .order("created_at", { ascending: false });
       
       if (error) throw error;
@@ -52,6 +54,23 @@ export default function Processos() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getPrazoStatusColor = (data: string, concluido: boolean) => {
+    if (concluido) return "text-muted-foreground line-through";
+    const prazoDate = new Date(data);
+    if (isPast(prazoDate) && !isToday(prazoDate)) return "text-destructive";
+    if (isToday(prazoDate) || isTomorrow(prazoDate)) return "text-warning";
+    return "text-foreground";
+  };
+
+  const getPrazoPrioridadeColor = (prioridade: string) => {
+    const colors: Record<string, string> = {
+      alta: "bg-destructive/10 text-destructive border-destructive/30",
+      media: "bg-warning/10 text-warning border-warning/30",
+      baixa: "bg-muted text-muted-foreground border-muted-foreground/30",
+    };
+    return colors[prioridade] || colors.media;
   };
 
   const handleDelete = async () => {
@@ -234,6 +253,56 @@ export default function Processos() {
                         </div>
                       )}
                     </div>
+
+                    {/* Prazos Vinculados */}
+                    {processo.prazos && processo.prazos.length > 0 && (
+                      <div className="pt-4 border-t border-border">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm font-medium text-muted-foreground">
+                            Prazos ({processo.prazos.length})
+                          </span>
+                        </div>
+                        <div className="grid gap-2">
+                          {processo.prazos
+                            .sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime())
+                            .slice(0, 3)
+                            .map((prazo: any) => (
+                              <div 
+                                key={prazo.id} 
+                                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                              >
+                                <div className="flex items-center gap-3">
+                                  {isPast(new Date(prazo.data)) && !prazo.concluido && !isToday(new Date(prazo.data)) && (
+                                    <AlertCircle className="h-4 w-4 text-destructive" />
+                                  )}
+                                  <div>
+                                    <p className={`text-sm font-medium ${getPrazoStatusColor(prazo.data, prazo.concluido)}`}>
+                                      {prazo.titulo}
+                                    </p>
+                                    <p className={`text-xs ${getPrazoStatusColor(prazo.data, prazo.concluido)}`}>
+                                      {format(new Date(prazo.data), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className={`text-xs ${getPrazoPrioridadeColor(prazo.prioridade)}`}>
+                                    {prazo.prioridade === 'alta' ? 'Alta' : prazo.prioridade === 'media' ? 'Média' : 'Baixa'}
+                                  </Badge>
+                                  {prazo.concluido && (
+                                    <Badge variant="secondary" className="text-xs">Concluído</Badge>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          {processo.prazos.length > 3 && (
+                            <p className="text-xs text-muted-foreground text-center pt-1">
+                              + {processo.prazos.length - 3} prazo(s) adicional(is)
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </Card>
               );
