@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2, Clock, AlertCircle } from "lucide-react";
+import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2, Clock, AlertCircle, CheckCircle2, Circle } from "lucide-react";
 import { format, isPast, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,6 +71,21 @@ export default function Processos() {
       baixa: "bg-muted text-muted-foreground border-muted-foreground/30",
     };
     return colors[prioridade] || colors.media;
+  };
+
+  const togglePrazoConcluido = async (prazoId: string, concluido: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("prazos")
+        .update({ concluido: !concluido })
+        .eq("id", prazoId);
+      
+      if (error) throw error;
+      toast.success(concluido ? "Prazo reaberto" : "Prazo marcado como concluído");
+      fetchProcessos();
+    } catch (error: any) {
+      toast.error("Erro ao atualizar prazo");
+    }
   };
 
   const handleDelete = async () => {
@@ -270,9 +285,20 @@ export default function Processos() {
                             .map((prazo: any) => (
                               <div 
                                 key={prazo.id} 
-                                className="flex items-center justify-between p-2 rounded-md bg-muted/50"
+                                className="flex items-center justify-between p-2 rounded-md bg-muted/50 group"
                               >
                                 <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => togglePrazoConcluido(prazo.id, prazo.concluido)}
+                                    className="flex-shrink-0 hover:scale-110 transition-transform"
+                                    title={prazo.concluido ? "Marcar como pendente" : "Marcar como concluído"}
+                                  >
+                                    {prazo.concluido ? (
+                                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                                    ) : (
+                                      <Circle className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                                    )}
+                                  </button>
                                   {isPast(new Date(prazo.data)) && !prazo.concluido && !isToday(new Date(prazo.data)) && (
                                     <AlertCircle className="h-4 w-4 text-destructive" />
                                   )}
