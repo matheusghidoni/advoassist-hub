@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Calendar } from "lucide-react";
+import { Loader2, Plus, Trash2, Calendar, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { startOfDay, isBefore, parseISO } from "date-fns";
 
 const processoSchema = z.object({
   numero: z.string().trim().min(1, "Número do processo é obrigatório"),
@@ -59,6 +60,13 @@ const createEmptyPrazo = (): PrazoItem => ({
   prioridade: "media",
   descricao: "",
 });
+
+const isPastDate = (dateString: string): boolean => {
+  if (!dateString) return false;
+  const date = parseISO(dateString);
+  const today = startOfDay(new Date());
+  return isBefore(date, today);
+};
 
 export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: ProcessoFormProps) {
   const [loading, setLoading] = useState(false);
@@ -113,6 +121,13 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
   };
 
   const onSubmit = async (data: ProcessoFormData) => {
+    // Validar se há prazos com datas passadas
+    const prazosComDataPassada = prazos.filter(p => p.data && isPastDate(p.data));
+    if (prazosComDataPassada.length > 0) {
+      toast.error("Não é possível cadastrar prazos com datas passadas. Corrija as datas antes de salvar.");
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -319,7 +334,14 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
                             type="date"
                             value={prazo.data}
                             onChange={(e) => updatePrazo(prazo.id, "data", e.target.value)}
+                            className={isPastDate(prazo.data) ? "border-destructive focus-visible:ring-destructive" : ""}
                           />
+                          {isPastDate(prazo.data) && (
+                            <p className="text-xs text-destructive flex items-center gap-1 mt-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Data não pode ser no passado
+                            </p>
+                          )}
                         </div>
                       </div>
 
