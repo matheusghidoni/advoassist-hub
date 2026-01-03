@@ -13,7 +13,9 @@ import {
   CheckCircle,
   Calendar,
   DollarSign,
-  FileText
+  FileText,
+  Clock,
+  Timer
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,13 +33,15 @@ interface Notificacao {
   created_at: string;
 }
 
+type FilterType = "todas" | "lidas" | "nao_lidas" | "prazos";
+
 export default function Notificacoes() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [filter, setFilter] = useState<"todas" | "lidas" | "nao_lidas">("todas");
+  const [filter, setFilter] = useState<FilterType>("todas");
 
   const fetchNotificacoes = async () => {
     if (!user) return;
@@ -68,6 +72,10 @@ export default function Notificacoes() {
     switch (tipo) {
       case "prazo":
         return <Calendar className="h-5 w-5 text-orange-500" />;
+      case "urgente":
+        return <AlertTriangle className="h-5 w-5 text-destructive" />;
+      case "aviso":
+        return <Clock className="h-5 w-5 text-yellow-500" />;
       case "honorario":
         return <DollarSign className="h-5 w-5 text-green-500" />;
       case "processo":
@@ -79,6 +87,12 @@ export default function Notificacoes() {
       default:
         return <Info className="h-5 w-5 text-primary" />;
     }
+  };
+
+  const isPrazoNotification = (notificacao: Notificacao) => {
+    return notificacao.link?.startsWith("/prazos") || 
+           ["urgente", "aviso", "info"].includes(notificacao.tipo) ||
+           notificacao.titulo.includes("Prazo");
   };
 
   const handleMarcarComoLida = async (ids: string[]) => {
@@ -145,10 +159,12 @@ export default function Notificacoes() {
   const filteredNotificacoes = notificacoes.filter(n => {
     if (filter === "lidas") return n.lida;
     if (filter === "nao_lidas") return !n.lida;
+    if (filter === "prazos") return isPrazoNotification(n);
     return true;
   });
 
   const naoLidasCount = notificacoes.filter(n => !n.lida).length;
+  const prazosCount = notificacoes.filter(n => isPrazoNotification(n)).length;
 
   return (
     <MainLayout>
@@ -169,7 +185,7 @@ export default function Notificacoes() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-4">
@@ -209,13 +225,26 @@ export default function Notificacoes() {
               </div>
             </CardContent>
           </Card>
+          <Card className="border-orange-500/30 bg-orange-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-full bg-orange-500/10">
+                  <Timer className="h-6 w-6 text-orange-500" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{prazosCount}</p>
+                  <p className="text-sm text-muted-foreground">Alertas de Prazos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters and Actions */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button 
                   variant={filter === "todas" ? "default" : "outline"} 
                   size="sm"
@@ -236,6 +265,15 @@ export default function Notificacoes() {
                   onClick={() => setFilter("lidas")}
                 >
                   Lidas
+                </Button>
+                <Button 
+                  variant={filter === "prazos" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setFilter("prazos")}
+                  className="border-orange-500/50 hover:bg-orange-500/10"
+                >
+                  <Timer className="mr-1 h-4 w-4" />
+                  Alertas de Prazos
                 </Button>
               </div>
               {selectedIds.length > 0 && (
@@ -302,12 +340,18 @@ export default function Notificacoes() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className={`font-medium ${notificacao.lida ? "text-muted-foreground" : "text-foreground"}`}>
                             {notificacao.titulo}
                           </h4>
                           {!notificacao.lida && (
                             <Badge variant="secondary" className="text-xs">Nova</Badge>
+                          )}
+                          {isPrazoNotification(notificacao) && (
+                            <Badge variant="outline" className="text-xs border-orange-500/50 text-orange-600">
+                              <Timer className="mr-1 h-3 w-3" />
+                              Automático
+                            </Badge>
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
