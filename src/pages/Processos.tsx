@@ -263,7 +263,7 @@ export default function Processos() {
                       {processo.valor && (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <span>Valor: <span className="font-medium text-foreground">
-                            R$ {processo.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(processo.valor)}
                           </span></span>
                         </div>
                       )}
