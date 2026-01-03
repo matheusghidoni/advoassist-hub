@@ -27,6 +27,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type PrazoFilter = "todos" | "vencidos" | "proximos" | "em_dia";
+
 export default function Processos() {
   const [processos, setProcessos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ export default function Processos() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [processoToDelete, setProcessoToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [prazoFilter, setPrazoFilter] = useState<PrazoFilter>("todos");
 
   useEffect(() => {
     fetchProcessos();
@@ -108,10 +111,44 @@ export default function Processos() {
     }
   };
 
-  const filteredProcessos = processos.filter(processo =>
-    processo.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    processo.tipo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const hasVencidos = (prazos: any[]) => {
+    if (!prazos || prazos.length === 0) return false;
+    return prazos.some(p => !p.concluido && isPast(new Date(p.data)) && !isToday(new Date(p.data)));
+  };
+
+  const hasProximos = (prazos: any[]) => {
+    if (!prazos || prazos.length === 0) return false;
+    const hoje = new Date();
+    const seteDias = new Date();
+    seteDias.setDate(hoje.getDate() + 7);
+    return prazos.some(p => {
+      if (p.concluido) return false;
+      const prazoDate = new Date(p.data);
+      return (isToday(prazoDate) || isTomorrow(prazoDate) || (prazoDate > hoje && prazoDate <= seteDias));
+    });
+  };
+
+  const filteredProcessos = processos.filter(processo => {
+    const matchesSearch = processo.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      processo.tipo.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (prazoFilter === "vencidos") {
+      return hasVencidos(processo.prazos);
+    }
+    if (prazoFilter === "proximos") {
+      return hasProximos(processo.prazos);
+    }
+    if (prazoFilter === "em_dia") {
+      return !hasVencidos(processo.prazos) && !hasProximos(processo.prazos);
+    }
+    return true;
+  });
+
+  // Contadores para os filtros
+  const vencidosCount = processos.filter(p => hasVencidos(p.prazos)).length;
+  const proximosCount = processos.filter(p => hasProximos(p.prazos)).length;
 
   // Calcular estatísticas reais
   const emAndamento = processos.filter(p => p.status === 'em_andamento').length;
@@ -149,17 +186,53 @@ export default function Processos() {
 
         {/* Search and Filters */}
         <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por número, cliente, tipo..."
-                className="pl-10"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por número, cliente, tipo..."
+                  className="pl-10"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
-            <Button variant="outline">Filtros</Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm text-muted-foreground mr-2">Filtrar por prazos:</span>
+              <Button 
+                variant={prazoFilter === "todos" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setPrazoFilter("todos")}
+              >
+                Todos
+              </Button>
+              <Button 
+                variant={prazoFilter === "vencidos" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setPrazoFilter("vencidos")}
+                className={prazoFilter !== "vencidos" ? "border-destructive/50 text-destructive hover:bg-destructive/10" : ""}
+              >
+                <AlertCircle className="mr-1 h-4 w-4" />
+                Vencidos ({vencidosCount})
+              </Button>
+              <Button 
+                variant={prazoFilter === "proximos" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setPrazoFilter("proximos")}
+                className={prazoFilter !== "proximos" ? "border-warning/50 text-warning hover:bg-warning/10" : ""}
+              >
+                <Clock className="mr-1 h-4 w-4" />
+                Próximos 7 dias ({proximosCount})
+              </Button>
+              <Button 
+                variant={prazoFilter === "em_dia" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setPrazoFilter("em_dia")}
+              >
+                Em dia
+              </Button>
+            </div>
           </div>
         </Card>
 
