@@ -19,7 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { DollarSign, TrendingUp, AlertCircle, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { DollarSign, TrendingUp, AlertCircle, Plus, MoreVertical, Pencil, Trash2, Scale, FileText, PieChart } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -44,9 +44,21 @@ interface Honorario {
   } | null;
 }
 
+interface Processo {
+  id: string;
+  numero: string;
+  tipo: string;
+  status: string;
+  valor: number | null;
+  clientes: {
+    nome: string;
+  } | null;
+}
+
 export default function Financeiro() {
   const { user } = useAuth();
   const [honorarios, setHonorarios] = useState<Honorario[]>([]);
+  const [processos, setProcessos] = useState<Processo[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingHonorario, setEditingHonorario] = useState<Honorario | null>(null);
@@ -55,6 +67,7 @@ export default function Financeiro() {
 
   useEffect(() => {
     fetchHonorarios();
+    fetchProcessos();
   }, [user]);
 
   const fetchHonorarios = async () => {
@@ -78,6 +91,26 @@ export default function Financeiro() {
       setHonorarios(data || []);
     }
     setLoading(false);
+  };
+
+  const fetchProcessos = async () => {
+    const { data, error } = await supabase
+      .from('processos')
+      .select(`
+        id,
+        numero,
+        tipo,
+        status,
+        valor,
+        clientes!processos_cliente_id_fkey (nome)
+      `)
+      .eq('user_id', user?.id);
+
+    if (error) {
+      console.error('Erro ao buscar processos:', error);
+    } else {
+      setProcessos(data || []);
+    }
   };
 
   const handleDelete = async () => {
@@ -118,7 +151,30 @@ export default function Financeiro() {
     };
   };
 
+  const calcularEstatisticasProcessos = () => {
+    const totalValorCausas = processos.reduce((sum, p) => sum + (p.valor || 0), 0);
+    const processosComValor = processos.filter(p => p.valor && p.valor > 0);
+    const mediaValorCausa = processosComValor.length > 0 
+      ? totalValorCausas / processosComValor.length 
+      : 0;
+    
+    const valorPorStatus = processos.reduce((acc, p) => {
+      const status = p.status || 'outros';
+      acc[status] = (acc[status] || 0) + (p.valor || 0);
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalValorCausas,
+      mediaValorCausa,
+      processosComValor: processosComValor.length,
+      totalProcessos: processos.length,
+      valorPorStatus
+    };
+  };
+
   const stats = calcularEstatisticas();
+  const statsProcessos = calcularEstatisticasProcessos();
 
   if (loading) {
     return (
@@ -203,6 +259,81 @@ export default function Financeiro() {
             </div>
           </Card>
         </div>
+
+        {/* Relatório de Valores das Causas */}
+        <Card className="p-6 shadow-card">
+          <div className="flex items-center gap-2 mb-4">
+            <Scale className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Relatório de Valores das Causas</h2>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-3 mb-6">
+            <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2 mb-2">
+                <DollarSign className="h-4 w-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Valor Total das Causas</span>
+              </div>
+              <p className="text-2xl font-bold text-primary">
+                R$ {statsProcessos.totalValorCausas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {statsProcessos.processosComValor} de {statsProcessos.totalProcessos} processos com valor
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <PieChart className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Média por Processo</span>
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                R$ {statsProcessos.mediaValorCausa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Processos Cadastrados</span>
+              </div>
+              <p className="text-2xl font-bold text-foreground">
+                {statsProcessos.totalProcessos}
+              </p>
+            </div>
+          </div>
+
+          {/* Valores por Status */}
+          <div className="border-t border-border pt-4">
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Valores por Status</h3>
+            <div className="grid gap-2 md:grid-cols-4">
+              {Object.entries(statsProcessos.valorPorStatus).map(([status, valor]) => {
+                const statusLabels: Record<string, string> = {
+                  em_andamento: 'Em Andamento',
+                  suspenso: 'Suspenso',
+                  concluido: 'Concluído',
+                  arquivado: 'Arquivado'
+                };
+                const statusColors: Record<string, string> = {
+                  em_andamento: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                  suspenso: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+                  concluido: 'bg-green-500/10 text-green-600 border-green-500/20',
+                  arquivado: 'bg-gray-500/10 text-gray-600 border-gray-500/20'
+                };
+                return (
+                  <div 
+                    key={status} 
+                    className={`p-3 rounded-lg border ${statusColors[status] || 'bg-muted border-border'}`}
+                  >
+                    <p className="text-xs font-medium mb-1">{statusLabels[status] || status}</p>
+                    <p className="text-lg font-bold">
+                      R$ {valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </Card>
 
         {/* Honorários */}
         <Card className="p-6 shadow-card">
