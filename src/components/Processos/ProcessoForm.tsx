@@ -14,12 +14,23 @@ import { Loader2, Plus, Trash2, Calendar, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { startOfDay, isBefore, parseISO } from "date-fns";
 
+const MIN_VALOR = 0.01;
+const MAX_VALOR = 999999999.99;
+
 const processoSchema = z.object({
   numero: z.string().trim().min(1, "Número do processo é obrigatório"),
   tipo: z.string().trim().min(1, "Tipo é obrigatório").max(100, "Tipo deve ter no máximo 100 caracteres"),
   status: z.string(),
   cliente_id: z.string().optional(),
-  valor: z.string().optional(),
+  valor: z.string().optional().refine((val) => {
+    if (!val) return true;
+    const numbers = val.replace(/\D/g, "");
+    if (!numbers) return true;
+    const value = parseInt(numbers, 10) / 100;
+    return value >= MIN_VALOR && value <= MAX_VALOR;
+  }, {
+    message: `Valor deve estar entre R$ 0,01 e R$ 999.999.999,99`,
+  }),
   vara: z.string().trim().max(100, "Vara deve ter no máximo 100 caracteres").optional(),
   comarca: z.string().trim().max(100, "Comarca deve ter no máximo 100 caracteres").optional(),
 });
@@ -297,6 +308,7 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
                   }}
                 />
               </div>
+              {errors.valor && <p className="text-sm text-destructive">{errors.valor.message}</p>}
             </div>
 
             <div className="space-y-2">
