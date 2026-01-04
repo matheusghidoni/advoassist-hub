@@ -24,6 +24,20 @@ const processoSchema = z.object({
   comarca: z.string().trim().max(100, "Comarca deve ter no máximo 100 caracteres").optional(),
 });
 
+const formatCurrency = (value: string): string => {
+  const numbers = value.replace(/\D/g, "");
+  if (!numbers) return "";
+  const cents = parseInt(numbers, 10);
+  const reais = cents / 100;
+  return reais.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const parseCurrency = (value: string): number => {
+  const numbers = value.replace(/\D/g, "");
+  if (!numbers) return 0;
+  return parseInt(numbers, 10) / 100;
+};
+
 const formatProcessoNumero = (value: string) => {
   const numbers = value.replace(/\D/g, "");
   if (numbers.length <= 7) return numbers;
@@ -80,6 +94,7 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
 
   const status = watch("status");
   const cliente_id = watch("cliente_id");
+  const valorField = watch("valor");
 
   useEffect(() => {
     fetchClientes();
@@ -87,12 +102,13 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
 
   useEffect(() => {
     if (processo) {
+      const valorFormatado = processo.valor ? formatCurrency((processo.valor * 100).toFixed(0)) : "";
       reset({
         numero: processo.numero,
         tipo: processo.tipo,
         status: processo.status,
         cliente_id: processo.cliente_id,
-        valor: processo.valor?.toString() || "",
+        valor: valorFormatado,
         vara: processo.vara || "",
         comarca: processo.comarca || "",
       });
@@ -137,7 +153,7 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
         numero: data.numero,
         tipo: data.tipo,
         status: data.status,
-        valor: data.valor ? parseFloat(data.valor) : null,
+        valor: data.valor ? parseCurrency(data.valor) : null,
         vara: data.vara || null,
         comarca: data.comarca || null,
         cliente_id: data.cliente_id || null,
@@ -267,8 +283,20 @@ export function ProcessoForm({ open, onOpenChange, onSuccess, processo }: Proces
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="valor">Valor da Causa (R$)</Label>
-              <Input id="valor" type="number" step="0.01" {...register("valor")} />
+              <Label htmlFor="valor">Valor da Causa</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                <Input 
+                  id="valor" 
+                  className="pl-9"
+                  placeholder="0,00"
+                  value={valorField || ""}
+                  onChange={(e) => {
+                    const formatted = formatCurrency(e.target.value);
+                    setValue("valor", formatted);
+                  }}
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
