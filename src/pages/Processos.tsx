@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2, Clock, AlertCircle, CheckCircle2, Circle } from "lucide-react";
+import { Plus, Search, MoreVertical, Calendar, User, Pencil, Trash2, Clock, AlertCircle, CheckCircle2, Circle, ArrowUpDown } from "lucide-react";
 import { format, isPast, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 type PrazoFilter = "todos" | "vencidos" | "proximos" | "em_dia";
+type SortOrder = "recente" | "proximo_prazo";
 
 export default function Processos() {
   const [processos, setProcessos] = useState<any[]>([]);
@@ -38,6 +39,7 @@ export default function Processos() {
   const [processoToDelete, setProcessoToDelete] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [prazoFilter, setPrazoFilter] = useState<PrazoFilter>("todos");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("recente");
 
   useEffect(() => {
     fetchProcessos();
@@ -128,6 +130,14 @@ export default function Processos() {
     });
   };
 
+  const getProximoPrazo = (prazos: any[]): Date | null => {
+    if (!prazos || prazos.length === 0) return null;
+    const prazosNaoConcluidos = prazos.filter(p => !p.concluido);
+    if (prazosNaoConcluidos.length === 0) return null;
+    const sorted = prazosNaoConcluidos.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+    return new Date(sorted[0].data);
+  };
+
   const filteredProcessos = processos.filter(processo => {
     const matchesSearch = processo.numero.toLowerCase().includes(searchTerm.toLowerCase()) ||
       processo.tipo.toLowerCase().includes(searchTerm.toLowerCase());
@@ -144,6 +154,22 @@ export default function Processos() {
       return !hasVencidos(processo.prazos) && !hasProximos(processo.prazos);
     }
     return true;
+  });
+
+  const sortedProcessos = [...filteredProcessos].sort((a, b) => {
+    if (sortOrder === "proximo_prazo") {
+      const prazoA = getProximoPrazo(a.prazos);
+      const prazoB = getProximoPrazo(b.prazos);
+      
+      // Processos sem prazo vão para o final
+      if (!prazoA && !prazoB) return 0;
+      if (!prazoA) return 1;
+      if (!prazoB) return -1;
+      
+      return prazoA.getTime() - prazoB.getTime();
+    }
+    // Ordenação padrão: mais recente primeiro
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   // Contadores para os filtros
@@ -198,40 +224,61 @@ export default function Processos() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-muted-foreground mr-2">Filtrar por prazos:</span>
-              <Button 
-                variant={prazoFilter === "todos" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setPrazoFilter("todos")}
-              >
-                Todos
-              </Button>
-              <Button 
-                variant={prazoFilter === "vencidos" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setPrazoFilter("vencidos")}
-                className={prazoFilter !== "vencidos" ? "border-destructive/50 text-destructive hover:bg-destructive/10" : ""}
-              >
-                <AlertCircle className="mr-1 h-4 w-4" />
-                Vencidos ({vencidosCount})
-              </Button>
-              <Button 
-                variant={prazoFilter === "proximos" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setPrazoFilter("proximos")}
-                className={prazoFilter !== "proximos" ? "border-warning/50 text-warning hover:bg-warning/10" : ""}
-              >
-                <Clock className="mr-1 h-4 w-4" />
-                Próximos 7 dias ({proximosCount})
-              </Button>
-              <Button 
-                variant={prazoFilter === "em_dia" ? "default" : "outline"} 
-                size="sm"
-                onClick={() => setPrazoFilter("em_dia")}
-              >
-                Em dia
-              </Button>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-muted-foreground mr-2">Filtrar por prazos:</span>
+                <Button 
+                  variant={prazoFilter === "todos" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPrazoFilter("todos")}
+                >
+                  Todos
+                </Button>
+                <Button 
+                  variant={prazoFilter === "vencidos" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPrazoFilter("vencidos")}
+                  className={prazoFilter !== "vencidos" ? "border-destructive/50 text-destructive hover:bg-destructive/10" : ""}
+                >
+                  <AlertCircle className="mr-1 h-4 w-4" />
+                  Vencidos ({vencidosCount})
+                </Button>
+                <Button 
+                  variant={prazoFilter === "proximos" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPrazoFilter("proximos")}
+                  className={prazoFilter !== "proximos" ? "border-warning/50 text-warning hover:bg-warning/10" : ""}
+                >
+                  <Clock className="mr-1 h-4 w-4" />
+                  Próximos 7 dias ({proximosCount})
+                </Button>
+                <Button 
+                  variant={prazoFilter === "em_dia" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setPrazoFilter("em_dia")}
+                >
+                  Em dia
+                </Button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Ordenar:</span>
+                <Button 
+                  variant={sortOrder === "recente" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setSortOrder("recente")}
+                >
+                  Mais recente
+                </Button>
+                <Button 
+                  variant={sortOrder === "proximo_prazo" ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setSortOrder("proximo_prazo")}
+                >
+                  <ArrowUpDown className="mr-1 h-4 w-4" />
+                  Próximo prazo
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -270,14 +317,14 @@ export default function Processos() {
             <Card className="p-6">
               <p className="text-center text-muted-foreground">Carregando...</p>
             </Card>
-          ) : filteredProcessos.length === 0 ? (
+          ) : sortedProcessos.length === 0 ? (
             <Card className="p-6">
               <p className="text-center text-muted-foreground">
                 {searchTerm ? "Nenhum processo encontrado" : "Nenhum processo cadastrado"}
               </p>
             </Card>
           ) : (
-            filteredProcessos.map((processo) => {
+            sortedProcessos.map((processo) => {
               const statusInfo = getStatusVariant(processo.status);
               return (
                 <Card key={processo.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
