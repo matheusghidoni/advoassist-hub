@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, DragEvent } from "react";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, AlertCircle, Clock, CheckCircle2, GripVertical } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, isPast, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,8 @@ export default function Calendario() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [draggedPrazo, setDraggedPrazo] = useState<Prazo | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<Date | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,7 +67,6 @@ export default function Calendario() {
     const end = endOfMonth(currentDate);
     const days = eachDayOfInterval({ start, end });
 
-    // Add padding days from previous month
     const startDay = start.getDay();
     const paddingStart = Array(startDay).fill(null);
 
@@ -98,6 +99,64 @@ export default function Calendario() {
     if (dayPrazos.length > 0) {
       setSelectedDate(date);
       setDialogOpen(true);
+    }
+  };
+
+  // Drag and Drop handlers
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, prazo: Prazo) => {
+    setDraggedPrazo(prazo);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", prazo.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPrazo(null);
+    setDragOverDate(null);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, date: Date) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverDate(date);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>, targetDate: Date) => {
+    e.preventDefault();
+    setDragOverDate(null);
+
+    if (!draggedPrazo) return;
+
+    const newDateString = format(targetDate, "yyyy-MM-dd");
+    
+    if (draggedPrazo.data === newDateString) {
+      setDraggedPrazo(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("prazos")
+        .update({ data: newDateString })
+        .eq("id", draggedPrazo.id);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      setPrazos((prev) =>
+        prev.map((p) =>
+          p.id === draggedPrazo.id ? { ...p, data: newDateString } : p
+        )
+      );
+
+      toast.success(`Prazo "${draggedPrazo.titulo}" movido para ${format(targetDate, "dd/MM/yyyy")}`);
+    } catch (error: any) {
+      toast.error("Erro ao atualizar data do prazo");
+    } finally {
+      setDraggedPrazo(null);
     }
   };
 
@@ -209,18 +268,22 @@ export default function Calendario() {
 
                   const dayPrazos = getPrazosForDay(day);
                   const hasVencidos = dayPrazos.some((p) => !p.concluido && isPast(new Date(p.data)) && !isToday(new Date(p.data)));
-                  const hasPendentes = dayPrazos.some((p) => !p.concluido);
+                  const isDragOver = dragOverDate && isSameDay(dragOverDate, day);
 
                   return (
                     <div
                       key={day.toISOString()}
                       onClick={() => handleDayClick(day)}
+                      onDragOver={(e) => handleDragOver(e, day)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, day)}
                       className={`
                         min-h-[100px] p-2 border rounded-lg transition-all
                         ${!isSameMonth(day, currentDate) ? "opacity-50" : ""}
                         ${isToday(day) ? "border-primary border-2 bg-primary/5" : "border-border"}
                         ${dayPrazos.length > 0 ? "cursor-pointer hover:bg-accent/50" : ""}
                         ${hasVencidos ? "bg-destructive/10" : ""}
+                        ${isDragOver ? "border-primary border-2 bg-primary/20 scale-[1.02]" : ""}
                       `}
                     >
                       <div className={`text-sm font-medium mb-1 ${isToday(day) ? "text-primary" : "text-foreground"}`}>
@@ -230,10 +293,17 @@ export default function Calendario() {
                         {dayPrazos.slice(0, 3).map((prazo) => (
                           <div
                             key={prazo.id}
-                            className={`text-xs px-1.5 py-0.5 rounded truncate ${getPrazoStatusColor(prazo)}`}
-                            title={prazo.titulo}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, prazo)}
+                            onDragEnd={handleDragEnd}
+                            className={`text-xs px-1.5 py-0.5 rounded truncate cursor-grab active:cursor-grabbing flex items-center gap-1 ${getPrazoStatusColor(prazo)} ${
+                              draggedPrazo?.id === prazo.id ? "opacity-50" : ""
+                            }`}
+                            title={`${prazo.titulo} - Arraste para alterar a data`}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {prazo.titulo}
+                            <GripVertical className="h-3 w-3 shrink-0 opacity-60" />
+                            <span className="truncate">{prazo.titulo}</span>
                           </div>
                         ))}
                         {dayPrazos.length > 3 && (
@@ -252,23 +322,31 @@ export default function Calendario() {
 
         {/* Legenda */}
         <Card className="p-4 shadow-card">
-          <h3 className="text-sm font-medium text-muted-foreground mb-3">Legenda</h3>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-destructive" />
-              <span className="text-sm text-muted-foreground">Vencido</span>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">Legenda</h3>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-destructive" />
+                  <span className="text-sm text-muted-foreground">Vencido</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-warning" />
+                  <span className="text-sm text-muted-foreground">Vence hoje</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-primary" />
+                  <span className="text-sm text-muted-foreground">Pendente</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded bg-muted" />
+                  <span className="text-sm text-muted-foreground">Concluído</span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-warning" />
-              <span className="text-sm text-muted-foreground">Vence hoje</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-primary" />
-              <span className="text-sm text-muted-foreground">Pendente</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-muted" />
-              <span className="text-sm text-muted-foreground">Concluído</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+              <GripVertical className="h-4 w-4" />
+              <span>Arraste os prazos para alterar as datas</span>
             </div>
           </div>
         </Card>
