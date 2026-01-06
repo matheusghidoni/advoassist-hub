@@ -326,16 +326,32 @@ export default function Processos() {
           ) : (
             sortedProcessos.map((processo) => {
               const statusInfo = getStatusVariant(processo.status);
+              const temPrazosVencidos = hasVencidos(processo.prazos);
+              const quantidadeVencidos = processo.prazos?.filter((p: any) => !p.concluido && isPast(new Date(p.data)) && !isToday(new Date(p.data))).length || 0;
+              
               return (
-                <Card key={processo.id} className="p-6 shadow-card hover:shadow-md transition-shadow">
+                <Card 
+                  key={processo.id} 
+                  className={`p-6 shadow-card hover:shadow-md transition-shadow relative ${
+                    temPrazosVencidos 
+                      ? 'border-destructive border-2 bg-destructive/5' 
+                      : ''
+                  }`}
+                >
                   <div className="space-y-4">
                     {/* Header */}
                     <div className="flex items-start justify-between">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-lg font-semibold text-foreground">{processo.numero}</h3>
                           <Badge className={statusInfo.className}>{statusInfo.label}</Badge>
                           <Badge variant="outline">{processo.tipo}</Badge>
+                          {temPrazosVencidos && (
+                            <Badge className="bg-destructive text-destructive-foreground gap-1 animate-pulse">
+                              <AlertCircle className="h-3 w-3" />
+                              {quantidadeVencidos} prazo{quantidadeVencidos > 1 ? 's' : ''} vencido{quantidadeVencidos > 1 ? 's' : ''}
+                            </Badge>
+                          )}
                         </div>
                         {processo.comarca && <p className="text-sm text-muted-foreground">Comarca: {processo.comarca}</p>}
                       </div>
