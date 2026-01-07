@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle, Filter } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle, Filter, GripVertical } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -10,12 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import { useState, useEffect, DragEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PrazoForm } from "@/components/Prazos/PrazoForm";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isSameDay, isPast, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   DropdownMenu,
@@ -42,17 +42,35 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
+interface Prazo {
+  id: string;
+  titulo: string;
+  data: string;
+  tipo: string;
+  prioridade: string;
+  concluido: boolean;
+  descricao: string | null;
+  processo_id: string | null;
+  processos?: {
+    numero: string;
+  } | null;
+}
+
 export default function Prazos() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [prazos, setPrazos] = useState<any[]>([]);
+  const [prazos, setPrazos] = useState<Prazo[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
-  const [editingPrazo, setEditingPrazo] = useState<any>(null);
+  const [editingPrazo, setEditingPrazo] = useState<Prazo | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [prazoToDelete, setPrazoToDelete] = useState<any>(null);
-  const [selectedPrazo, setSelectedPrazo] = useState<any>(null);
+  const [prazoToDelete, setPrazoToDelete] = useState<Prazo | null>(null);
+  const [selectedPrazo, setSelectedPrazo] = useState<Prazo | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  
+  // Drag and drop
+  const [draggedPrazo, setDraggedPrazo] = useState<Prazo | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<Date | null>(null);
   
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>("todos");
@@ -113,6 +131,64 @@ export default function Prazos() {
     }
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, prazo: Prazo) => {
+    setDraggedPrazo(prazo);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", prazo.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedPrazo(null);
+    setDragOverDate(null);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, date: Date) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverDate(date);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleDrop = async (e: DragEvent<HTMLDivElement>, targetDate: Date) => {
+    e.preventDefault();
+    setDragOverDate(null);
+
+    if (!draggedPrazo) return;
+
+    const newDateString = format(targetDate, "yyyy-MM-dd");
+    
+    if (draggedPrazo.data === newDateString) {
+      setDraggedPrazo(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("prazos")
+        .update({ data: newDateString })
+        .eq("id", draggedPrazo.id);
+
+      if (error) throw error;
+
+      // Update local state immediately
+      setPrazos((prev) =>
+        prev.map((p) =>
+          p.id === draggedPrazo.id ? { ...p, data: newDateString } : p
+        )
+      );
+
+      toast.success(`Prazo "${draggedPrazo.titulo}" movido para ${format(targetDate, "dd/MM/yyyy")}`);
+    } catch (error: any) {
+      toast.error("Erro ao atualizar data do prazo");
+    } finally {
+      setDraggedPrazo(null);
+    }
+  };
+
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
@@ -132,6 +208,10 @@ export default function Prazos() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
   // Apply filters to prazos
   const filteredPrazos = prazos.filter(p => {
     const statusMatch = filterStatus === "todos" || 
@@ -145,13 +225,17 @@ export default function Prazos() {
   const getPrazosByDay = (day: number) => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
+    const targetDate = new Date(year, month, day);
     
-    return filteredPrazos.filter(p => {
-      const prazoDate = parseISO(p.data);
-      return prazoDate.getDate() === day && 
-             prazoDate.getMonth() === month && 
-             prazoDate.getFullYear() === year;
-    });
+    return filteredPrazos.filter(p => isSameDay(parseISO(p.data), targetDate));
+  };
+
+  const getPrazoStatusColor = (prazo: Prazo) => {
+    if (prazo.concluido) return "bg-muted text-muted-foreground";
+    const prazoDate = new Date(prazo.data);
+    if (isPast(prazoDate) && !isToday(prazoDate)) return "bg-destructive text-destructive-foreground";
+    if (isToday(prazoDate)) return "bg-warning text-warning-foreground";
+    return "bg-primary text-primary-foreground";
   };
 
   // Calcular estatísticas reais
@@ -173,13 +257,12 @@ export default function Prazos() {
     return prazoDate >= today && prazoDate <= sevenDaysFromNow && !p.concluido;
   }).length;
 
-  const threeDaysFromNow = new Date(today);
-  threeDaysFromNow.setDate(today.getDate() + 3);
-  
-  const prazosCriticos = prazos.filter(p => {
+  const prazosConcluidos = prazos.filter(p => p.concluido).length;
+
+  const prazosVencidos = prazos.filter(p => {
     const prazoDate = parseISO(p.data);
     prazoDate.setHours(0, 0, 0, 0);
-    return prazoDate >= today && prazoDate <= threeDaysFromNow && !p.concluido;
+    return prazoDate < today && !p.concluido;
   }).length;
 
   return (
@@ -201,7 +284,7 @@ export default function Prazos() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <Card className="p-4 shadow-card">
             <div className="flex items-center justify-between">
               <div>
@@ -227,11 +310,22 @@ export default function Prazos() {
           <Card className="p-4 shadow-card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Críticos (&lt; 3 dias)</p>
-                <p className="text-2xl font-bold text-destructive">{prazosCriticos}</p>
+                <p className="text-sm text-muted-foreground">Vencidos</p>
+                <p className="text-2xl font-bold text-destructive">{prazosVencidos}</p>
               </div>
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
-                <Clock className="h-6 w-6 text-destructive" />
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4 shadow-card">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Concluídos</p>
+                <p className="text-2xl font-bold text-status-active">{prazosConcluidos}</p>
+              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-status-active/10">
+                <FileText className="h-6 w-6 text-status-active" />
               </div>
             </div>
           </Card>
@@ -241,19 +335,22 @@ export default function Prazos() {
         <Card className="p-6 shadow-card">
           {/* Calendar Header */}
           <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-xl font-semibold capitalize text-foreground">{monthName}</h2>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-4">
               <Button variant="outline" size="icon" onClick={previousMonth}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
+              <h2 className="text-xl font-semibold capitalize text-foreground">{monthName}</h2>
               <Button variant="outline" size="icon" onClick={nextMonth}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              Hoje
+            </Button>
           </div>
 
           {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-1">
             {/* Week days */}
             {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'].map(day => (
               <div key={day} className="p-2 text-center text-sm font-semibold text-muted-foreground">
@@ -270,61 +367,57 @@ export default function Prazos() {
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dayPrazos = getPrazosByDay(day);
+              const year = currentDate.getFullYear();
+              const month = currentDate.getMonth();
+              const dayDate = new Date(year, month, day);
               const todayCheck = new Date();
-              const isToday = day === todayCheck.getDate() && 
+              const isTodayDay = day === todayCheck.getDate() && 
                             currentDate.getMonth() === todayCheck.getMonth() && 
                             currentDate.getFullYear() === todayCheck.getFullYear();
+              
+              const hasVencidos = dayPrazos.some((p) => !p.concluido && isPast(new Date(p.data)) && !isToday(new Date(p.data)));
+              const isDragOver = dragOverDate && isSameDay(dragOverDate, dayDate);
               
               return (
                 <div
                   key={day}
-                  className={`min-h-24 rounded-lg border p-2 transition-colors hover:border-primary ${
-                    isToday ? 'border-primary bg-primary/5' : 'border-border'
+                  onDragOver={(e) => handleDragOver(e, dayDate)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, dayDate)}
+                  className={`min-h-24 rounded-lg border p-2 transition-all ${
+                    isTodayDay ? 'border-primary border-2 bg-primary/5' : 'border-border'
+                  } ${hasVencidos ? 'bg-destructive/10' : ''} ${
+                    isDragOver ? 'border-primary border-2 bg-primary/20 scale-[1.02]' : ''
                   }`}
                 >
-                  <div className={`mb-1 text-sm font-semibold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                  <div className={`mb-1 text-sm font-semibold ${isTodayDay ? 'text-primary' : 'text-foreground'}`}>
                     {day}
                   </div>
                   <div className="space-y-1">
-                    {dayPrazos.map(prazo => {
-                      const prazoDate = parseISO(prazo.data);
-                      prazoDate.setHours(0, 0, 0, 0);
-                      const todayDate = new Date();
-                      todayDate.setHours(0, 0, 0, 0);
-                      const diffDays = Math.ceil((prazoDate.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-                      
-                      // Determine color based on status
-                      let colorClass = '';
-                      if (prazo.concluido) {
-                        // Completed - Green
-                        colorClass = 'bg-success/20 text-success hover:bg-success/30 border-l-2 border-l-success';
-                      } else if (diffDays < 0) {
-                        // Overdue - Dark red
-                        colorClass = 'bg-destructive/30 text-destructive hover:bg-destructive/40 border-l-2 border-l-destructive';
-                      } else if (diffDays <= 3) {
-                        // Critical (within 3 days) - Red
-                        colorClass = 'bg-destructive/20 text-destructive hover:bg-destructive/30 border-l-2 border-l-destructive';
-                      } else if (diffDays <= 7) {
-                        // Near deadline (within 7 days) - Orange/Warning
-                        colorClass = 'bg-warning/20 text-warning hover:bg-warning/30 border-l-2 border-l-warning';
-                      } else {
-                        // Normal pending - Blue/Primary
-                        colorClass = 'bg-primary/20 text-primary hover:bg-primary/30 border-l-2 border-l-primary';
-                      }
-                      
-                      return (
-                        <div
-                          key={prazo.id}
-                          onClick={() => {
-                            setSelectedPrazo(prazo);
-                            setDetailsDialogOpen(true);
-                          }}
-                          className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer transition-all hover:scale-105 ${colorClass}`}
-                        >
-                          {prazo.titulo}
-                        </div>
-                      );
-                    })}
+                    {dayPrazos.slice(0, 3).map(prazo => (
+                      <div
+                        key={prazo.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, prazo)}
+                        onDragEnd={handleDragEnd}
+                        onClick={() => {
+                          setSelectedPrazo(prazo);
+                          setDetailsDialogOpen(true);
+                        }}
+                        className={`rounded px-1.5 py-0.5 text-xs font-medium cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex items-center gap-1 ${getPrazoStatusColor(prazo)} ${
+                          draggedPrazo?.id === prazo.id ? "opacity-50" : ""
+                        }`}
+                        title={`${prazo.titulo} - Arraste para alterar a data`}
+                      >
+                        <GripVertical className="h-3 w-3 shrink-0 opacity-60" />
+                        <span className="truncate">{prazo.titulo}</span>
+                      </div>
+                    ))}
+                    {dayPrazos.length > 3 && (
+                      <div className="text-xs text-muted-foreground text-center">
+                        +{dayPrazos.length - 3} mais
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -332,23 +425,29 @@ export default function Prazos() {
           </div>
           
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs">
-            <span className="text-muted-foreground font-medium">Legenda:</span>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-success/30 border-l-2 border-l-success"></div>
-              <span className="text-muted-foreground">Concluído</span>
+          <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4 text-xs">
+              <span className="text-muted-foreground font-medium">Legenda:</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-muted"></div>
+                <span className="text-muted-foreground">Concluído</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-primary"></div>
+                <span className="text-muted-foreground">Pendente</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-warning"></div>
+                <span className="text-muted-foreground">Vence hoje</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded bg-destructive"></div>
+                <span className="text-muted-foreground">Vencido</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-primary/30 border-l-2 border-l-primary"></div>
-              <span className="text-muted-foreground">Pendente</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-warning/30 border-l-2 border-l-warning"></div>
-              <span className="text-muted-foreground">Próximo (≤7 dias)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded bg-destructive/30 border-l-2 border-l-destructive"></div>
-              <span className="text-muted-foreground">Crítico (≤3 dias) / Atrasado</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
+              <GripVertical className="h-4 w-4" />
+              <span>Arraste os prazos para alterar as datas</span>
             </div>
           </div>
         </Card>
@@ -356,7 +455,7 @@ export default function Prazos() {
         {/* Upcoming Deadlines List */}
         <Card className="p-6 shadow-card">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Próximos Prazos</h2>
+            <h2 className="text-lg font-semibold text-foreground">Lista de Prazos</h2>
             <div className="flex flex-wrap items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -428,8 +527,8 @@ export default function Prazos() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">
-                        {prazo.tipo}
+                      <Badge variant={prazo.concluido ? "default" : "outline"}>
+                        {prazo.concluido ? "Concluído" : prazo.tipo}
                       </Badge>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -438,6 +537,13 @@ export default function Prazos() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => {
+                            setSelectedPrazo(prazo);
+                            setDetailsDialogOpen(true);
+                          }}>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Ver detalhes
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => {
                             setEditingPrazo(prazo);
                             setFormOpen(true);
