@@ -15,7 +15,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PrazoForm } from "@/components/Prazos/PrazoForm";
-import { format, parseISO, isSameDay, isPast, isToday } from "date-fns";
+import { format, parseISO, isSameDay, isPast, isToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, addDays, subDays, addWeeks, subWeeks } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   DropdownMenu,
@@ -76,6 +76,8 @@ export default function Prazos() {
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterPrioridade, setFilterPrioridade] = useState<string>("todas");
   const [filterTipo, setFilterTipo] = useState<string>("todos");
+  const [filterPeriodo, setFilterPeriodo] = useState<string>("mes");
+  const [selectedListDate, setSelectedListDate] = useState(new Date());
 
   useEffect(() => {
     fetchPrazos();
@@ -212,6 +214,58 @@ export default function Prazos() {
     setCurrentDate(new Date());
   };
 
+  // Get period range based on filter
+  const getPeriodRange = () => {
+    const baseDate = selectedListDate;
+    switch (filterPeriodo) {
+      case "dia":
+        return { start: baseDate, end: baseDate };
+      case "semana":
+        return { 
+          start: startOfWeek(baseDate, { weekStartsOn: 0 }), 
+          end: endOfWeek(baseDate, { weekStartsOn: 0 }) 
+        };
+      case "mes":
+      default:
+        return { 
+          start: startOfMonth(baseDate), 
+          end: endOfMonth(baseDate) 
+        };
+    }
+  };
+
+  const periodRange = getPeriodRange();
+
+  // Get period label
+  const getPeriodLabel = () => {
+    switch (filterPeriodo) {
+      case "dia":
+        return format(selectedListDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+      case "semana":
+        return `${format(periodRange.start, "dd/MM")} - ${format(periodRange.end, "dd/MM/yyyy")}`;
+      case "mes":
+      default:
+        return format(selectedListDate, "MMMM 'de' yyyy", { locale: ptBR });
+    }
+  };
+
+  // Navigate period
+  const navigatePeriod = (direction: "prev" | "next") => {
+    const modifier = direction === "next" ? 1 : -1;
+    switch (filterPeriodo) {
+      case "dia":
+        setSelectedListDate(addDays(selectedListDate, modifier));
+        break;
+      case "semana":
+        setSelectedListDate(addWeeks(selectedListDate, modifier));
+        break;
+      case "mes":
+      default:
+        setSelectedListDate(new Date(selectedListDate.getFullYear(), selectedListDate.getMonth() + modifier, 1));
+        break;
+    }
+  };
+
   // Apply filters to prazos
   const filteredPrazos = prazos.filter(p => {
     const statusMatch = filterStatus === "todos" || 
@@ -219,7 +273,12 @@ export default function Prazos() {
       (filterStatus === "concluido" && p.concluido);
     const prioridadeMatch = filterPrioridade === "todas" || p.prioridade === filterPrioridade;
     const tipoMatch = filterTipo === "todos" || p.tipo === filterTipo;
-    return statusMatch && prioridadeMatch && tipoMatch;
+    
+    // Period filter
+    const prazoDate = parseISO(p.data);
+    const periodMatch = isWithinInterval(prazoDate, { start: periodRange.start, end: periodRange.end });
+    
+    return statusMatch && prioridadeMatch && tipoMatch && periodMatch;
   });
 
   const getPrazosByDay = (day: number) => {
@@ -454,8 +513,52 @@ export default function Prazos() {
 
         {/* Upcoming Deadlines List */}
         <Card className="p-6 shadow-card">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <h2 className="text-lg font-semibold text-foreground">Lista de Prazos</h2>
+          {/* Period Navigation */}
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-foreground">Lista de Prazos</h2>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={filterPeriodo === "dia" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriodo("dia")}
+                >
+                  Dia
+                </Button>
+                <Button
+                  variant={filterPeriodo === "semana" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriodo("semana")}
+                >
+                  Semana
+                </Button>
+                <Button
+                  variant={filterPeriodo === "mes" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFilterPeriodo("mes")}
+                >
+                  Mês
+                </Button>
+              </div>
+            </div>
+
+            {/* Period selector with navigation */}
+            <div className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
+              <Button variant="ghost" size="icon" onClick={() => navigatePeriod("prev")}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-center">
+                <p className="font-medium text-foreground capitalize">{getPeriodLabel()}</p>
+                <p className="text-sm text-muted-foreground">
+                  {filteredPrazos.length} prazo{filteredPrazos.length !== 1 ? 's' : ''} neste período
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => navigatePeriod("next")}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Other filters */}
             <div className="flex flex-wrap items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -491,6 +594,14 @@ export default function Prazos() {
                   <SelectItem value="outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedListDate(new Date())}
+                className="text-primary"
+              >
+                Ir para hoje
+              </Button>
             </div>
           </div>
           <div className="space-y-3">
