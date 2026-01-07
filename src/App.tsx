@@ -17,7 +17,7 @@ import Financeiro from "./pages/Financeiro";
 import Notificacoes from "./pages/Notificacoes";
 import Configuracoes from "./pages/Configuracoes";
 import Profile from "./pages/Profile";
-import Calendario from "./pages/Calendario";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,7 +41,7 @@ const App = () => (
             <Route path="/clientes" element={<ProtectedRoute><Clientes /></ProtectedRoute>} />
             <Route path="/processos" element={<ProtectedRoute><Processos /></ProtectedRoute>} />
             <Route path="/prazos" element={<ProtectedRoute><Prazos /></ProtectedRoute>} />
-            <Route path="/calendario" element={<ProtectedRoute><Calendario /></ProtectedRoute>} />
+            
             <Route path="/financeiro" element={<ProtectedRoute><Financeiro /></ProtectedRoute>} />
             <Route path="/notificacoes" element={<ProtectedRoute><Notificacoes /></ProtectedRoute>} />
             <Route path="/configuracoes" element={<ProtectedRoute><Configuracoes /></ProtectedRoute>} />
