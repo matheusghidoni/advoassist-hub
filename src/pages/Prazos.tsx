@@ -2,7 +2,16 @@ import { MainLayout } from "@/components/Layout/MainLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle, Filter, GripVertical } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Pencil, Trash2, MoreVertical, FileText, AlertCircle, Filter, GripVertical, LayoutGrid, List } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -78,6 +87,7 @@ export default function Prazos() {
   const [filterTipo, setFilterTipo] = useState<string>("todos");
   const [filterPeriodo, setFilterPeriodo] = useState<string>("mes");
   const [selectedListDate, setSelectedListDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   useEffect(() => {
     fetchPrazos();
@@ -516,7 +526,27 @@ export default function Prazos() {
           {/* Period Navigation */}
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-semibold text-foreground">Lista de Prazos</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-foreground">Lista de Prazos</h2>
+                <div className="flex items-center border rounded-lg">
+                  <Button
+                    variant={viewMode === "cards" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("cards")}
+                    className="rounded-r-none"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("table")}
+                    className="rounded-l-none"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <Button
                   variant={filterPeriodo === "dia" ? "default" : "outline"}
@@ -604,15 +634,15 @@ export default function Prazos() {
               </Button>
             </div>
           </div>
-          <div className="space-y-3">
-            {loading ? (
-              <p className="text-center text-muted-foreground">Carregando...</p>
-            ) : filteredPrazos.length === 0 ? (
-              <p className="text-center text-muted-foreground">
-                {prazos.length === 0 ? "Nenhum prazo cadastrado" : "Nenhum prazo corresponde aos filtros selecionados"}
-              </p>
-            ) : (
-              filteredPrazos.map(prazo => {
+          {loading ? (
+            <p className="text-center text-muted-foreground py-8">Carregando...</p>
+          ) : filteredPrazos.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              {prazos.length === 0 ? "Nenhum prazo cadastrado" : "Nenhum prazo corresponde aos filtros selecionados"}
+            </p>
+          ) : viewMode === "cards" ? (
+            <div className="space-y-3">
+              {filteredPrazos.map(prazo => {
                 const prazoDate = parseISO(prazo.data);
                 return (
                   <div
@@ -677,9 +707,132 @@ export default function Prazos() {
                     </div>
                   </div>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[50px]">Status</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Prioridade</TableHead>
+                    <TableHead>Processo</TableHead>
+                    <TableHead className="w-[70px]">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPrazos.map(prazo => {
+                    const prazoDate = parseISO(prazo.data);
+                    const isVencido = isPast(prazoDate) && !isToday(prazoDate) && !prazo.concluido;
+                    const isHoje = isToday(prazoDate) && !prazo.concluido;
+                    
+                    return (
+                      <TableRow 
+                        key={prazo.id}
+                        className={`cursor-pointer hover:bg-muted/50 ${
+                          isVencido ? 'bg-destructive/5' : isHoje ? 'bg-warning/5' : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedPrazo(prazo);
+                          setDetailsDialogOpen(true);
+                        }}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={prazo.concluido}
+                            onCheckedChange={async (checked) => {
+                              try {
+                                const { error } = await supabase
+                                  .from("prazos")
+                                  .update({ concluido: !!checked })
+                                  .eq("id", prazo.id);
+                                if (error) throw error;
+                                setPrazos(prev => prev.map(p => 
+                                  p.id === prazo.id ? { ...p, concluido: !!checked } : p
+                                ));
+                                toast.success(checked ? "Prazo marcado como concluído" : "Prazo marcado como pendente");
+                              } catch {
+                                toast.error("Erro ao atualizar prazo");
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{prazo.titulo}</TableCell>
+                        <TableCell>
+                          <span className={`${
+                            isVencido ? 'text-destructive font-medium' : 
+                            isHoje ? 'text-warning font-medium' : ''
+                          }`}>
+                            {format(prazoDate, "dd/MM/yyyy")}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {prazo.tipo === 'prazo_processual' ? 'Processual' : 
+                             prazo.tipo === 'audiencia' ? 'Audiência' :
+                             prazo.tipo === 'reuniao' ? 'Reunião' : 'Outro'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={
+                              prazo.prioridade === 'alta' ? 'destructive' :
+                              prazo.prioridade === 'media' ? 'secondary' : 'default'
+                            }
+                            className="text-xs"
+                          >
+                            {prazo.prioridade === 'alta' ? 'Alta' :
+                             prazo.prioridade === 'media' ? 'Média' : 'Baixa'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {prazo.processos?.numero || '-'}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedPrazo(prazo);
+                                setDetailsDialogOpen(true);
+                              }}>
+                                <FileText className="h-4 w-4 mr-2" />
+                                Ver detalhes
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => {
+                                setEditingPrazo(prazo);
+                                setFormOpen(true);
+                              }}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => {
+                                  setPrazoToDelete(prazo);
+                                  setDeleteDialogOpen(true);
+                                }}
+                                className="text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </Card>
       </div>
 
