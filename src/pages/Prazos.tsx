@@ -81,6 +81,10 @@ export default function Prazos() {
   const [draggedPrazo, setDraggedPrazo] = useState<Prazo | null>(null);
   const [dragOverDate, setDragOverDate] = useState<Date | null>(null);
   
+  // Confirmação para mover prazos de alta prioridade
+  const [moveConfirmOpen, setMoveConfirmOpen] = useState(false);
+  const [pendingMove, setPendingMove] = useState<{ prazo: Prazo; targetDate: Date } | null>(null);
+  
   // Filters
   const [filterStatus, setFilterStatus] = useState<string>("todos");
   const [filterPrioridade, setFilterPrioridade] = useState<string>("todas");
@@ -178,27 +182,54 @@ export default function Prazos() {
       return;
     }
 
+    // Se for prioridade alta, pedir confirmação
+    if (draggedPrazo.prioridade === "alta") {
+      setPendingMove({ prazo: draggedPrazo, targetDate });
+      setMoveConfirmOpen(true);
+      return;
+    }
+
+    await executePrazoMove(draggedPrazo, targetDate);
+  };
+
+  const executePrazoMove = async (prazo: Prazo, targetDate: Date) => {
+    const newDateString = format(targetDate, "yyyy-MM-dd");
+    
     try {
       const { error } = await supabase
         .from("prazos")
         .update({ data: newDateString })
-        .eq("id", draggedPrazo.id);
+        .eq("id", prazo.id);
 
       if (error) throw error;
 
       // Update local state immediately
       setPrazos((prev) =>
         prev.map((p) =>
-          p.id === draggedPrazo.id ? { ...p, data: newDateString } : p
+          p.id === prazo.id ? { ...p, data: newDateString } : p
         )
       );
 
-      toast.success(`Prazo "${draggedPrazo.titulo}" movido para ${format(targetDate, "dd/MM/yyyy")}`);
+      toast.success(`Prazo "${prazo.titulo}" movido para ${format(targetDate, "dd/MM/yyyy")}`);
     } catch (error: any) {
       toast.error("Erro ao atualizar data do prazo");
     } finally {
       setDraggedPrazo(null);
     }
+  };
+
+  const handleConfirmMove = async () => {
+    if (pendingMove) {
+      await executePrazoMove(pendingMove.prazo, pendingMove.targetDate);
+    }
+    setMoveConfirmOpen(false);
+    setPendingMove(null);
+  };
+
+  const handleCancelMove = () => {
+    setMoveConfirmOpen(false);
+    setPendingMove(null);
+    setDraggedPrazo(null);
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -947,6 +978,30 @@ export default function Prazos() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de confirmação para mover prazo de alta prioridade */}
+      <AlertDialog open={moveConfirmOpen} onOpenChange={setMoveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              Mover prazo de alta prioridade
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O prazo <strong>"{pendingMove?.prazo.titulo}"</strong> possui <span className="text-destructive font-semibold">prioridade alta</span>. 
+              <br /><br />
+              Deseja realmente movê-lo de{" "}
+              <strong>{pendingMove?.prazo.data && format(parseISO(pendingMove.prazo.data), "dd/MM/yyyy")}</strong>{" "}
+              para{" "}
+              <strong>{pendingMove?.targetDate && format(pendingMove.targetDate, "dd/MM/yyyy")}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelMove}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmMove}>Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
