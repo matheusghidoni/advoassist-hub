@@ -88,6 +88,12 @@ export default function Profile() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validate current password is provided
+    if (!currentPassword) {
+      toast.error('Por favor, insira sua senha atual');
+      return;
+    }
+
     if (newPassword.length < 8) {
       toast.error('A senha deve ter no mínimo 8 caracteres');
       return;
@@ -116,6 +122,19 @@ export default function Profile() {
     setLoading(true);
 
     try {
+      // First verify the current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error('Senha atual incorreta');
+        setLoading(false);
+        return;
+      }
+
+      // If current password is correct, proceed with password update
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });
@@ -254,6 +273,17 @@ export default function Profile() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="currentPassword">Senha Atual</Label>
+                    <Input
+                      id="currentPassword"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                    />
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="newPassword">Nova Senha</Label>
                     <Input
