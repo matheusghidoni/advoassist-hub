@@ -3,13 +3,40 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-api-key",
+};
+
+// Simple API key verification for cron job authentication
+const verifyApiKey = (req: Request): boolean => {
+  const apiKey = req.headers.get("x-api-key");
+  const expectedKey = Deno.env.get("CRON_API_KEY");
+  
+  // If no CRON_API_KEY is set, require the service role key in Authorization header
+  if (!expectedKey) {
+    const authHeader = req.headers.get("authorization");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    return authHeader === `Bearer ${serviceKey}`;
+  }
+  
+  return apiKey === expectedKey;
 };
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Verify API key for all non-OPTIONS requests
+  if (!verifyApiKey(req)) {
+    console.error("Unauthorized: Invalid or missing API key");
+    return new Response(
+      JSON.stringify({ success: false, error: "Unauthorized: Invalid or missing API key" }),
+      {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      }
+    );
   }
 
   try {
