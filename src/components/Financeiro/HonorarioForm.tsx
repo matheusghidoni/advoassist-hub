@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 interface Processo {
   id: string;
   numero: string;
+  valor: number | null;
   clientes: { nome: string } | null;
 }
 
@@ -36,8 +37,14 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
     status: 'pendente',
     observacoes: '',
     tipo_pagamento: 'a_vista',
-    numero_parcelas: ''
+    numero_parcelas: '',
+    percentual_honorario: '20'
   });
+
+  const processoSelecionado = processos.find(p => p.id === formData.processo_id);
+  const valorCausa = processoSelecionado?.valor || 0;
+  const percentual = parseFloat(formData.percentual_honorario) || 0;
+  const valorEstimado = (valorCausa * percentual) / 100;
 
   useEffect(() => {
     if (open) {
@@ -52,7 +59,8 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
           status: editingHonorario.status || 'pendente',
           observacoes: editingHonorario.observacoes || '',
           tipo_pagamento: editingHonorario.tipo_pagamento || 'a_vista',
-          numero_parcelas: editingHonorario.numero_parcelas?.toString() || ''
+          numero_parcelas: editingHonorario.numero_parcelas?.toString() || '',
+          percentual_honorario: '20'
         });
       } else {
         setFormData({
@@ -64,7 +72,8 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
           status: 'pendente',
           observacoes: '',
           tipo_pagamento: 'a_vista',
-          numero_parcelas: ''
+          numero_parcelas: '',
+          percentual_honorario: '20'
         });
       }
     }
@@ -73,7 +82,7 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
   const fetchProcessos = async () => {
     const { data, error } = await supabase
       .from('processos')
-      .select('id, numero, clientes!processos_cliente_id_fkey(nome)')
+      .select('id, numero, valor, clientes!processos_cliente_id_fkey(nome)')
       .eq('user_id', user?.id)
       .order('numero', { ascending: true });
 
@@ -83,6 +92,12 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
     }
 
     setProcessos(data || []);
+  };
+
+  const aplicarValorEstimado = () => {
+    if (valorEstimado > 0) {
+      setFormData({ ...formData, valor_total: valorEstimado.toFixed(2) });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -158,6 +173,52 @@ export function HonorarioForm({ open, onOpenChange, onSuccess, editingHonorario 
               </SelectContent>
             </Select>
           </div>
+
+          {/* Cálculo automático de honorários baseado no valor da causa */}
+          {processoSelecionado && valorCausa > 0 && (
+            <div className="p-4 bg-muted/50 rounded-lg border border-border space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Calcular Honorários</Label>
+                <span className="text-xs text-muted-foreground">
+                  Valor da causa: R$ {valorCausa.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="percentual_honorario" className="text-xs text-muted-foreground">Percentual (%)</Label>
+                  <Input
+                    id="percentual_honorario"
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="100"
+                    placeholder="20"
+                    value={formData.percentual_honorario}
+                    onChange={(e) => setFormData({ ...formData, percentual_honorario: e.target.value })}
+                    className="h-9"
+                  />
+                </div>
+                
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs text-muted-foreground">Valor Estimado</Label>
+                  <div className="h-9 px-3 flex items-center bg-background border rounded-md text-sm font-medium text-primary">
+                    R$ {valorEstimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={aplicarValorEstimado}
+                  className="mt-5"
+                >
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="valor_total">Valor Total *</Label>
