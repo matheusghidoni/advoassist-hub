@@ -1,0 +1,4 @@
+project_id = "sfkubeshpehrzurlgwex"
+
+[functions.check-deadline-notifications]
+verify_jwt = false

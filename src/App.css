@@ -1,0 +1,8 @@
+/* App.css — AdvoAssist Hub
+   Estilos residuais globais. A maioria das regras está em index.css. */
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}

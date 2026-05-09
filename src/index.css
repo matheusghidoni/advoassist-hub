@@ -1,0 +1,213 @@
+/* ============================================================
+   AdvoAssist Design System — Google Fonts import MUST be first
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   AdvoAssist Design System
+   Paleta: Navy Profundo · Dourado Jurídico · Azul Médio · Fundo Quente
+   Filosofia: Minimalista, corporativo, confiança e rapidez.
+   All colors MUST be HSL.
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ── Paleta base ─────────────────────────────────────────── */
+    /* Navy Profundo: estrutura, textos e botões primários        */
+    /* Dourado Jurídico: CTAs secundários, badges, separadores   */
+    /* Azul Médio: textos de suporte, bordas, ícones inativos    */
+    /* Fundo Quente: background de página — levemente bege       */
+
+    /* Background & Foreground */
+    --background: 40 33% 97%;           /* Fundo quente — warm off-white */
+    --foreground: 215 65% 11%;          /* Navy profundo */
+
+    /* Cards / Popovers */
+    --card: 0 0% 100%;
+    --card-foreground: 215 65% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 65% 11%;
+
+    /* Primary → Navy Profundo */
+    --primary: 215 65% 11%;
+    --primary-foreground: 40 33% 97%;
+    --primary-hover: 215 65% 16%;
+
+    /* Secondary → Dourado Jurídico sutil (CTAs secundários) */
+    --secondary: 46 38% 58%;
+    --secondary-foreground: 215 65% 11%;
+
+    /* Muted → superfícies e textos suaves */
+    --muted: 40 20% 94%;
+    --muted-foreground: 213 27% 40%;    /* Azul médio */
+
+    /* Accent → Dourado jurídico sutil (destaques, badges) */
+    --accent: 46 38% 58%;
+    --accent-foreground: 215 65% 11%;
+
+    /* Semânticos */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 30%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 46%;
+    --warning-foreground: 215 65% 11%;
+
+    /* Bordas e inputs → Azul médio suave */
+    --border: 213 22% 82%;
+    --input: 213 22% 82%;
+    --ring: 215 65% 11%;
+
+    /* Border radius — levemente arredondado, moderno */
+    --radius: 0.5rem;
+
+    /* ── Sidebar → Navy Profundo ─────────────────────────────── */
+    --sidebar-background: 215 65% 11%;
+    --sidebar-foreground: 40 33% 94%;
+    --sidebar-primary: 46 38% 58%;              /* Dourado sutil no ativo */
+    --sidebar-primary-foreground: 215 65% 11%;
+    --sidebar-accent: 215 55% 18%;              /* Hover suave */
+    --sidebar-accent-foreground: 40 33% 97%;
+    --sidebar-border: 215 45% 17%;
+    --sidebar-ring: 46 38% 58%;
+
+    /* ── Status ──────────────────────────────────────────────── */
+    --status-active: 142 71% 30%;
+    --status-pending: 38 92% 46%;
+    --status-suspended: 213 22% 50%;
+    --status-completed: 215 65% 30%;
+    --status-archived: 213 10% 55%;
+
+    /* ── Priority ────────────────────────────────────────────── */
+    --priority-high: 0 72% 51%;
+    --priority-medium: 38 92% 46%;
+    --priority-low: 142 71% 30%;
+
+    /* ── Gradients ───────────────────────────────────────────── */
+    --gradient-primary: linear-gradient(135deg, hsl(215 65% 11%), hsl(215 55% 22%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 20% 98%));
+    --gradient-gold: linear-gradient(135deg, hsl(46 38% 58%), hsl(38 35% 66%));
+
+    /* ── Shadows ─────────────────────────────────────────────── */
+    --shadow-sm: 0 1px 3px 0 hsl(215 65% 11% / 0.06);
+    --shadow-md: 0 4px 8px -1px hsl(215 65% 11% / 0.1), 0 1px 3px hsl(215 65% 11% / 0.06);
+    --shadow-lg: 0 12px 24px -4px hsl(215 65% 11% / 0.12), 0 4px 8px hsl(215 65% 11% / 0.06);
+    --shadow-card: 0 2px 8px hsl(215 65% 11% / 0.07), 0 0 0 1px hsl(213 22% 82% / 0.5);
+  }
+
+  .dark {
+    /* Dark mode — Navy ainda mais escuro como base */
+    --background: 215 50% 7%;
+    --foreground: 40 20% 95%;
+
+    --card: 215 48% 10%;
+    --card-foreground: 40 20% 95%;
+
+    --popover: 215 48% 10%;
+    --popover-foreground: 40 20% 95%;
+
+    /* Primary dark → Dourado sutil como destaque principal */
+    --primary: 46 38% 62%;
+    --primary-foreground: 215 65% 11%;
+    --primary-hover: 46 38% 55%;
+
+    --secondary: 215 45% 18%;
+    --secondary-foreground: 40 20% 95%;
+
+    --muted: 215 40% 14%;
+    --muted-foreground: 213 20% 58%;
+
+    --accent: 46 38% 60%;
+    --accent-foreground: 215 65% 11%;
+
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 60% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 85% 50%;
+    --warning-foreground: 215 65% 11%;
+
+    --border: 215 40% 17%;
+    --input: 215 40% 17%;
+    --ring: 46 65% 52%;
+
+    --sidebar-background: 215 55% 6%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 46 38% 62%;
+    --sidebar-primary-foreground: 215 65% 11%;
+    --sidebar-accent: 215 45% 12%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 215 40% 12%;
+    --sidebar-ring: 46 38% 62%;
+
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.25);
+    --shadow-md: 0 4px 8px -1px hsl(0 0% 0% / 0.35);
+    --shadow-lg: 0 12px 24px -4px hsl(0 0% 0% / 0.45);
+    --shadow-card: 0 2px 8px hsl(0 0% 0% / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Tipografia hierárquica */
+  h1, h2 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer utilities {
+  /* Separador Dourado sutil */
+  .gold-divider {
+    @apply h-px w-full;
+    background: linear-gradient(90deg, transparent, hsl(46 38% 58% / 0.5), transparent);
+  }
+
+  /* Badge Dourado Jurídico sutil */
+  .badge-gold {
+    @apply inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-semibold;
+    background-color: hsl(46 38% 58% / 0.1);
+    color: hsl(46 38% 40%);
+    border: 1px solid hsl(46 38% 58% / 0.25);
+  }
+
+  /* Transições suaves e padronizadas */
+  .transition-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  /* Foco acessível sem outline genérico */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1;
+  }
+}

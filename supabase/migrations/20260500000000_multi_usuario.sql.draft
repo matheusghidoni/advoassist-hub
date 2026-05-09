@@ -1,0 +1,157 @@
+-- ╔══════════════════════════════════════════════════════════════════════════════╗
+-- ║  ESBOÇO — Multi-Usuário / Escritório                                        ║
+-- ║                                                                              ║
+-- ║  ARQUIVO: .sql.draft  →  NÃO será aplicado pelo `supabase db push`.         ║
+-- ║  Renomear para .sql e ajustar quando a implementação começar.                ║
+-- ╚══════════════════════════════════════════════════════════════════════════════╝
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FASE 1 — Tabelas novas
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- 1a. Escritórios (workspaces)
+CREATE TABLE IF NOT EXISTS public.escritorios (
+  id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    uuid        NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+  nome        text        NOT NULL,
+  cnpj        text        UNIQUE,
+  telefone    text,
+  email       text,
+  endereco    text,
+  logo_path   text,
+  plano       text        NOT NULL DEFAULT 'basico'
+                          CHECK (plano IN ('basico', 'profissional', 'enterprise')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+-- 1b. Membros do escritório
+CREATE TABLE IF NOT EXISTS public.escritorio_membros (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  escritorio_id   uuid        NOT NULL REFERENCES public.escritorios(id) ON DELETE CASCADE,
+  user_id         uuid        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role            text        NOT NULL DEFAULT 'advogado'
+                              CHECK (role IN ('dono','admin','advogado','estagiario','secretaria')),
+  status          text        NOT NULL DEFAULT 'ativo'
+                              CHECK (status IN ('ativo','convidado','suspenso')),
+  convidado_por   uuid        REFERENCES auth.users(id),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (escritorio_id, user_id)
+);
+
+-- 1c. Convites por e-mail
+CREATE TABLE IF NOT EXISTS public.convites (
+  id              uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  escritorio_id   uuid        NOT NULL REFERENCES public.escritorios(id) ON DELETE CASCADE,
+  email           text        NOT NULL,
+  role            text        NOT NULL DEFAULT 'advogado'
+                              CHECK (role IN ('admin','advogado','estagiario','secretaria')),
+  token           text        NOT NULL UNIQUE DEFAULT gen_random_uuid()::text,
+  expires_at      timestamptz NOT NULL DEFAULT now() + interval '48 hours',
+  aceito_em       timestamptz,
+  convidado_por   uuid        NOT NULL REFERENCES auth.users(id),
+  created_at      timestamptz NOT NULL DEFAULT now()
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FASE 2 — Adicionar escritorio_id nas tabelas existentes
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Executar em cada tabela de negócio:
+
+-- ALTER TABLE public.clientes            ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.processos           ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.prazos              ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.honorarios          ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.despesas            ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.tarefas             ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.registros_horas     ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.andamentos_processuais ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.processo_documentos ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.cliente_documentos  ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+-- ALTER TABLE public.notificacoes        ADD COLUMN IF NOT EXISTS escritorio_id uuid REFERENCES public.escritorios(id) ON DELETE CASCADE;
+
+-- Tarefas também recebem atribuição para membro específico:
+-- ALTER TABLE public.tarefas ADD COLUMN IF NOT EXISTS atribuido_a uuid REFERENCES auth.users(id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FASE 3 — Backfill: criar escritório pessoal para cada usuário existente
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- DO $$
+-- DECLARE
+--   r RECORD;
+--   eid uuid;
+-- BEGIN
+--   FOR r IN SELECT DISTINCT user_id FROM public.clientes LOOP
+--     -- Cria escritório pessoal baseado no perfil existente
+--     INSERT INTO public.escritorios (owner_id, nome)
+--     SELECT r.user_id, COALESCE(p.office_name, p.full_name, 'Meu Escritório')
+--     FROM   public.profiles p
+--     WHERE  p.id = r.user_id
+--     ON CONFLICT DO NOTHING
+--     RETURNING id INTO eid;
+--
+--     -- Cria membro dono
+--     INSERT INTO public.escritorio_membros (escritorio_id, user_id, role, status)
+--     VALUES (eid, r.user_id, 'dono', 'ativo')
+--     ON CONFLICT DO NOTHING;
+--
+--     -- Popula escritorio_id em todas as tabelas deste user_id
+--     UPDATE public.clientes         SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.processos        SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.prazos           SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.honorarios       SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.despesas         SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.tarefas          SET escritorio_id = eid WHERE user_id = r.user_id;
+--     UPDATE public.registros_horas  SET escritorio_id = eid WHERE user_id = r.user_id;
+--   END LOOP;
+-- END $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FASE 4 — Helper function para RLS
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- CREATE OR REPLACE FUNCTION auth.escritorio_ids()
+-- RETURNS uuid[] LANGUAGE sql STABLE SECURITY DEFINER AS $$
+--   SELECT array_agg(escritorio_id)
+--   FROM   public.escritorio_membros
+--   WHERE  user_id = auth.uid()
+--   AND    status  = 'ativo';
+-- $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FASE 5 — Atualizar RLS policies
+-- (Exemplo para processos — repetir para cada tabela)
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- DROP POLICY IF EXISTS "Users can view their own processos" ON public.processos;
+-- DROP POLICY IF EXISTS "Users can insert their own processos" ON public.processos;
+-- DROP POLICY IF EXISTS "Users can update their own processos" ON public.processos;
+-- DROP POLICY IF EXISTS "Users can delete their own processos" ON public.processos;
+--
+-- CREATE POLICY "Membros veem processos do escritório"
+--   ON public.processos FOR SELECT
+--   USING (escritorio_id = ANY(auth.escritorio_ids()));
+--
+-- CREATE POLICY "Membros inserem processos no escritório"
+--   ON public.processos FOR INSERT
+--   WITH CHECK (escritorio_id = ANY(auth.escritorio_ids()));
+--
+-- CREATE POLICY "Membros atualizam processos do escritório"
+--   ON public.processos FOR UPDATE
+--   USING (escritorio_id = ANY(auth.escritorio_ids()));
+--
+-- CREATE POLICY "Donos/admins excluem processos"
+--   ON public.processos FOR DELETE
+--   USING (
+--     escritorio_id = ANY(auth.escritorio_ids())
+--     AND (
+--       user_id = auth.uid()  -- criador sempre pode excluir os próprios
+--       OR EXISTS (           -- admin/dono pode excluir qualquer
+--         SELECT 1 FROM public.escritorio_membros
+--         WHERE escritorio_id = processos.escritorio_id
+--         AND   user_id       = auth.uid()
+--         AND   role          IN ('dono','admin')
+--         AND   status        = 'ativo'
+--       )
+--     )
+--   );
